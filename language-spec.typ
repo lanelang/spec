@@ -569,7 +569,7 @@ Comments are trivia. Comments do not appear in the syntactic grammar.
     [$#sym.Theta$], [type-variable context],
     [$#sym.Gamma$], [value typing context],
     [$D$], [custom type definition],
-    [$#sym.Delta (C) = D$], [visible custom type definition],
+    [$C #sym.arrow.r D #sym.in #sym.Delta$], [visible custom type definition binding],
     [$op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m)$], [struct definition],
     [$op("enum")(A_1, ..., A_n; v_j(P_(j,1), ..., P_(j,m_j)))$], [enum definition],
     [$op("params")(D) = (A_1, ..., A_n)$], [custom type parameters],
@@ -782,31 +782,37 @@ enum E[A1, ..., An] {
 } // enum definition
 ```
 
-The type-constructor context stores the full declaration shape, not only arity.
+Top-level custom type declarations are checked in two phases. First, all top-level struct and enum constructors are collected into #sym.Delta as declaration-shape bindings. Second, every field type and variant payload type is checked under the collected #sym.Delta and the declaration's type parameters. This permits mutually recursive custom types.
 
-#math-list(
-  $ #sym.Delta (S) = op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) $,
-  $ #sym.Delta (E) = op("enum")(A_1, ..., A_n; v_j(P_(j,1), ..., P_(j,m_j))) $,
-)
+*Custom type collection.* A top-level custom type declaration contributes its nominal constructor and declaration shape to #sym.Delta before member type checking begins. In enum declaration shapes, #math.inline[$P_j$] denotes the payload type sequence of variant #math.inline[$v_j$].
 
-Top-level custom type declarations are checked in two phases. First, all top-level struct and enum constructors are collected into #sym.Delta with their type parameters, field names, variant names, and declared member type expressions. Second, every field type and variant payload type is checked under the collected #sym.Delta and the declaration's type parameters. This permits mutually recursive custom types.
+```lane2
+struct S[A1, ..., An] { l1 : F1, ..., lm : Fm }
+enum E[A1, ..., An] { vj(Pj1, ..., Pjmj) }
+```
+
+$ S #sym.arrow.r op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta quad E #sym.arrow.r op("enum")(A_1, ..., A_n; v_1(P_1), ..., v_q(P_q)) #sym.in #sym.Delta $
+
+*Struct declaration well-formedness.* A struct declaration is well-formed when every declared field type is well-formed under the collected type-constructor context and the struct's type parameters.
 
 #rule[
-  $ #sym.Delta (S) = op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) quad #sym.forall i "." #sym.Delta; A_1, ..., A_n #sym.tack.r F_i " type" $
+  $ S #sym.arrow.r op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta quad #sym.forall i "." #sym.Delta; A_1, ..., A_n #sym.tack.r F_i " type" $
 ][
-  $ #sym.Delta #sym.tack.r S " declaration" $
+  $ #sym.Delta #sym.tack.r op("struct-decl")(S; A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) " declaration" $
 ]
 
+*Enum declaration well-formedness.* An enum declaration is well-formed when every declared variant payload type is well-formed under the collected type-constructor context and the enum's type parameters.
+
 #rule[
-  $ #sym.Delta (E) = op("enum")(A_1, ..., A_n; v_j(P_(j,1), ..., P_(j,m_j))) quad #sym.forall j,k "." #sym.Delta; A_1, ..., A_n #sym.tack.r P_(j,k) " type" $
+  $ E #sym.arrow.r op("enum")(A_1, ..., A_n; v_1(P_1), ..., v_q(P_q)) #sym.in #sym.Delta quad #sym.forall j,k "." #sym.Delta; A_1, ..., A_n #sym.tack.r P_(j,k) " type" $
 ][
-  $ #sym.Delta #sym.tack.r E " declaration" $
+  $ #sym.Delta #sym.tack.r op("enum-decl")(E; A_1, ..., A_n; v_1(P_1), ..., v_q(P_q)) " declaration" $
 ]
 
 *Nominal formation.* A nominal type application is well-formed when its custom type constructor is visible, the number of type arguments matches the declaration's type parameters, and every type argument is well-formed.
 
 #rule[
-  $ #sym.Delta (C) = D quad op("params")(D) = (A_1, ..., A_n) quad #sym.Delta; #sym.Theta #sym.tack.r T_1 " type" quad ... quad #sym.Delta; #sym.Theta #sym.tack.r T_n " type" $
+  $ C #sym.arrow.r D #sym.in #sym.Delta quad op("params")(D) = (A_1, ..., A_n) quad #sym.Delta; #sym.Theta #sym.tack.r T_1 " type" quad ... quad #sym.Delta; #sym.Theta #sym.tack.r T_n " type" $
 ][
   $ #sym.Delta; #sym.Theta #sym.tack.r C[T_1, ..., T_n] " type" $
 ]
@@ -828,7 +834,7 @@ S[T1, ..., Tn]::{ l1: e1, ..., lm: em } // qualified struct literal
 ```
 
 #rule[
-  $ #sym.Delta (S) = op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) quad #sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n] $
+  $ S #sym.arrow.r op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta quad #sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n] $
 ][
   $ op("fields")(S[T_1, ..., T_n]) = (l_1 : F_1 #sym.sigma, ..., l_m : F_m #sym.sigma) $
 ]
@@ -863,7 +869,7 @@ v(e1, ..., em) // unqualified variant expression after unambiguous resolution
 ```
 
 #rule[
-  $ #sym.Delta (E) = op("enum")(A_1, ..., A_n; ..., v(P_1, ..., P_m), ...) $
+  $ E #sym.arrow.r op("enum")(A_1, ..., A_n; ..., v(P_1, ..., P_m), ...) #sym.in #sym.Delta $
 ][
   $ op("payloads")(E[T_1, ..., T_n], v) = (P_1[T_1 #sym.slash A_1, ..., T_n #sym.slash A_n], ..., P_m[T_1 #sym.slash A_1, ..., T_n #sym.slash A_n]) $
 ]
@@ -899,7 +905,7 @@ match e {
 ]
 
 #rule[
-  $ #sym.Gamma #sym.tack.r e : E[T_1, ..., T_n] quad #sym.Delta (E) = op("enum")(A_1, ..., A_n; v_1, ..., v_q) quad #sym.Gamma #sym.tack.r a_j : op("arm-type")(E[T_1, ..., T_n], R) $
+  $ #sym.Gamma #sym.tack.r e : E[T_1, ..., T_n] quad E #sym.arrow.r op("enum")(A_1, ..., A_n; v_1, ..., v_q) #sym.in #sym.Delta quad #sym.Gamma #sym.tack.r a_j : op("arm-type")(E[T_1, ..., T_n], R) $
 ][
   $ #sym.Gamma #sym.tack.r op("match")(e; a_1, ..., a_q) : R $
 ]
@@ -1075,41 +1081,63 @@ Open bindings are not forward-visible and are not recursively open.
 
 = Scopes and Bindings
 
-Top-level type and function definitions form recursive definition groups.
+== Notations
 
-Top-level `struct`, `enum`, and `fn` definitions may refer to each other regardless of textual order.
+#figure(caption: [Scope and binding notations])[
+  #table(
+    columns: (auto, 1fr),
+    [Notation], [Meaning],
+    [$R$], [resolution environment],
+    [$#sym.Delta$], [type-name namespace],
+    [$#sym.Gamma$], [ordinary value-binding scope stack],
+    [$#sym.Omega$], [open-exposure scope stack],
+    [$#sym.Pi$], [preopen exposure layer],
+    [$s_T, s_V, s_F, s_R$], [type, value, field, and variant symbols],
+    [$x$], [ordinary value name],
+    [$C$], [type name],
+    [$S$], [struct type constructor],
+    [$E$], [enum type constructor],
+    [$l$], [struct field name],
+    [$v$], [enum variant name],
+    [$K$], [direct local typing constraint],
+    [$P$], [plain value candidate],
+    [$O$], [open-exposure candidate set],
+    [$Q$], [combined value candidate set],
+    [$R = (#sym.Delta, #sym.Gamma, #sym.Omega, #sym.Pi)$], [resolution environment components],
+    [$#sym.Delta #sym.tack.r C #sym.arrow.r s_T$], [type-name resolution],
+    [$#sym.Gamma #sym.tack.r x #sym.arrow.r P$], [ordinary value resolution],
+    [$#sym.Omega ";" #sym.Pi #sym.tack.r x #sym.arrow.r O$], [open and preopen resolution],
+    [$R #sym.tack.r d #sym.arrow.r R'$], [declaration resolution],
+    [$R ";" K #sym.tack.r e #sym.arrow.r s$], [expression-name resolution under a local typing constraint],
+    [$op("select")(Q, K) = s_V$], [candidate selection by direct local typing],
+    [$op("fields")(s_V) = (l_1 : s_(F,1), ..., l_n : s_(F,n))$], [fields exposed by opening a struct value],
+    [$op("variant")(s_T, v) = s_R$], [variant owned by an enum type symbol],
+  )
+]
 
-Top-level value definitions and top-level `open` declarations follow ordered value scope:
+== Resolution Model
 
-- a top-level `let` initializer may refer only to values already available at that declaration point;
-- a top-level `open` may open only a value already available at that declaration point;
-- a top-level `let open` defines its value and opens it only from that declaration point forward;
-- a top-level function body may refer to any top-level value or function, even one declared later.
+Name resolution maps source names to symbols or candidate sets before typed core is produced. It does not evaluate expressions. When an unqualified value reference denotes multiple candidates, local type checking may select exactly one candidate using direct local typing information; otherwise the reference is ambiguous.
 
-Example:
+The resolution environment has separate namespaces for type names and value names. Field and variant symbols are owned by nominal type symbols and are not global value bindings.
 
 ```lane2
-fn read_x() -> Int {
-  x
-}
-
-let x : Int = 1
+// source names
+TypeName
+value_name
+value_name.field_name
+TypeName::variant_name
 ```
 
-This is valid because the function body sees the complete top-level environment.
-
-```lane2
-let y : Int = x
-let x : Int = 1
-```
-
-This is invalid because top-level value initializers follow ordered value scope.
+#math-list(
+  $ R = (#sym.Delta, #sym.Gamma, #sym.Omega, #sym.Pi) $,
+  $ #sym.Delta #sym.tack.r C #sym.arrow.r s_T $,
+  $ R ";" K #sym.tack.r x #sym.arrow.r s_V $,
+)
 
 == Namespaces
 
-Lane2 has separate type and value namespaces.
-
-Type and value names may use the same spelling:
+Type and value names are resolved by different lookup judgments. The same source spelling may therefore be bound in both namespaces without conflict.
 
 ```lane2
 enum Option[A] {
@@ -1120,109 +1148,286 @@ enum Option[A] {
 let Option : Int = 42
 ```
 
-Syntax of the form `Type::member` resolves `Type` in the type namespace.
+*Type-name lookup.* A type name resolves through the type namespace.
+
+#rule[
+  $ C #sym.arrow.r s_T #sym.in #sym.Delta $
+][
+  $ #sym.Delta #sym.tack.r C #sym.arrow.r s_T $
+]
+
+*Ordinary value lookup.* A value name resolves through the ordinary value-binding scope stack.
+
+#rule[
+  $ x #sym.arrow.r s_V #sym.in #sym.Gamma $
+][
+  $ #sym.Gamma #sym.tack.r x #sym.arrow.r s_V $
+]
+
+Qualified type-member syntax resolves its left-hand side in the type namespace.
 
 ```lane2
-let x : Option[Int] = Option::some(1)
+Option::some(1) // Option is resolved as a type name
 ```
 
-The `Option` on the left of `::` denotes the enum type, not the value named `Option`.
+#rule[
+  $ #sym.Delta #sym.tack.r E #sym.arrow.r s_T quad op("variant")(s_T, v) = s_R $
+][
+  $ R #sym.tack.r op("qualified-variant")(E, v) #sym.arrow.r s_R $
+]
 
-== Local Bindings
+== Top-Level Scope
 
-Local `let` bindings are sequential. A local binding is visible only to later items and the final expression in the same block.
-
-Local `let` bindings may omit type annotations when their initializer can synthesize a type by local type inference:
+Top-level `struct`, `enum`, and `fn` declarations are collected before top-level value initializers are resolved. Top-level custom types and functions may therefore refer to each other regardless of textual order.
 
 ```lane2
-let x = 1
+struct S { value : T }
+enum T { wrap(S) }
+fn f(x : T) -> T { x }
 ```
 
-Local named functions are also sequential. They may call themselves, but local mutually recursive groups and forward references are not supported:
+#rule[
+  $ op("types")(d_1, ..., d_n) = #sym.Delta quad op("functions")(d_1, ..., d_n) = #sym.Gamma $
+][
+  $ op("top-recursive")(d_1, ..., d_n) = (#sym.Delta, #sym.Gamma) $
+]
+
+Top-level value definitions and top-level `open` declarations are resolved in source order. A top-level `let` initializer may refer only to values available at that declaration point. A top-level function body is resolved after the complete top-level function and value environment is known.
 
 ```lane2
-fn f(n : Int) -> Int {
-  fn loop(x : Int) -> Int {
-    if x == 0 {
-      0
-    } else {
-      loop(x - 1)
-    }
-  }
-  loop(n)
+let x : Int = earlier
+open x_ops
+let open y_ops : Add[Int] = Add::{ op_add: int_add }
+```
+
+#rule[
+  $ R_i ";" K_i #sym.tack.r e_i #sym.arrow.r e_i' quad R_(i+1) = R_i, x_i #sym.arrow.r s_i $
+][
+  $ R_i #sym.tack.r op("top-let")(x_i, T_i, e_i) #sym.arrow.r R_(i+1) $
+]
+
+#rule[
+  $ R_i ";" K #sym.tack.r op("plain-ref")(x) #sym.arrow.r s_V quad R_(i+1) = R_i, op("open-fields")(s_V) $
+][
+  $ R_i #sym.tack.r op("open")(x) #sym.arrow.r R_(i+1) $
+]
+
+An open binding first binds the value, then opens that value from the declaration point forward.
+
+```lane2
+let open ops : Add[Int] = Add::{ op_add: int_add }
+```
+
+#rule[
+  $ R_i #sym.tack.r op("top-let")(x, T, e) #sym.arrow.r R_j quad R_j ";" K #sym.tack.r op("plain-ref")(x) #sym.arrow.r s_V quad R_(j+1) = R_j, op("open-fields")(s_V) $
+][
+  $ R_i #sym.tack.r op("top-let-open")(x, T, e) #sym.arrow.r R_(j+1) $
+]
+
+== Local Scope
+
+Local `let`, local named `fn`, and local `open` items are sequential. A local binding is visible only to later local items and the final expression in the same block.
+
+```lane2
+{
+  let x = e
+  fn f(y : T) -> U { b }
+  open ops
+  result
 }
 ```
 
-Local value names may shadow earlier local value names.
+#rule[
+  $ R_i ";" K_i #sym.tack.r e_i #sym.arrow.r e_i' quad R_(i+1) = R_i, x_i #sym.arrow.r s_i $
+][
+  $ R_i #sym.tack.r op("local-let")(x_i, e_i) #sym.arrow.r R_(i+1) $
+]
 
-Ordinary value bindings in the same scope must have distinct names. Function parameters, local lets, top-level values, local functions, and pattern binders are ordinary value bindings.
+#rule[
+  $ R_(i+1) = R_i, f #sym.arrow.r s_f quad R_(i+1) ";" K #sym.tack.r b #sym.arrow.r b' $
+][
+  $ R_i #sym.tack.r op("local-fn")(f, U, b) #sym.arrow.r R_(i+1) $
+]
+
+Local value names may shadow earlier value names from outer layers. Ordinary value bindings in the same layer must have distinct names.
+
+```lane2
+let x = outer
+{
+  let x = inner
+  x
+}
+```
+
+#rule[
+  $ #sym.Gamma = #sym.Gamma _0, (x #sym.arrow.r s_1) quad #sym.Gamma' = #sym.Gamma, (x #sym.arrow.r s_2) $
+][
+  $ #sym.Gamma' #sym.tack.r x #sym.arrow.r s_2 $
+]
 
 == Open Scope Extensions
 
-`open value` opens a struct value.
-
-The operand of `open` must be a visible value name. It cannot be an arbitrary expression:
+`open x` requires `x` to resolve as a unique ordinary value binding. The operand is a value name, not an arbitrary expression.
 
 ```lane2
 open ops
 ```
 
-This is invalid:
+#rule[
+  $ #sym.Gamma #sym.tack.r x #sym.arrow.r s_V quad op("type-of")(s_V) = S[T_1, ..., T_n] $
+][
+  $ (#sym.Delta, #sym.Gamma, #sym.Omega, #sym.Pi) #sym.tack.r op("open")(x) #sym.arrow.r s_V $
+]
+
+An opened value must have a struct type. Opening the value exposes direct fields and fields forwarded by struct declaration `open` entries. The exposure belongs to the current open layer.
 
 ```lane2
-open make_ops(10)
-```
-
-The opened value must have a struct type after checking the target binding. The type can come from a type annotation or from an already checked earlier binding:
-
-```lane2
-{
-  let ops = Add::{ op_add: int_add }
-  open ops
-  1 + 2
+struct Compare[T] {
+  equal_impl : Equal[T]
+  open equal_impl
+  op_less : (T, T) -> Bool
 }
+
+open compare_ops
 ```
 
-If the target is missing or is not a struct value, the `open` declaration is invalid at its declaration point.
+#rule[
+  $ R #sym.tack.r op("open")(x) #sym.arrow.r s_V quad op("fields")(s_V) = (l_1 : s_(F,1), ..., l_n : s_(F,n)) $
+][
+  $ R #sym.tack.r op("open-layer")(x) #sym.arrow.r (l_1 #sym.arrow.r s_(F,1), ..., l_n #sym.arrow.r s_(F,n)) $
+]
 
-An open scope extension exposes the struct field values as unqualified candidates from the declaration point to the end of the current lexical layer.
-
-At top level, `open` extends to the end of the file:
+Open exposure name repetition is not an error at the open declaration point. Repeated exposed names in the same open layer form a candidate set.
 
 ```lane2
-open int_add_ops
-
-fn add_one(x : Int) -> Int {
-  x + 1
-}
+open int_ops
+open float_ops
+op_add
 ```
 
-Inside blocks, `open` is a local item and must appear before the final expression:
-
-```lane2
-{
-  open int_add_ops
-  x + y
-}
-```
-
-Plain value bindings and open scope extensions use separate lexical shadowing. Plain value bindings shadow only other plain value bindings. Open scope extensions shadow only outer open scope extensions and preopen exposures.
-
-An unqualified value reference combines the nearest plain binding candidate with the candidates exposed by the nearest open scope layer. If multiple candidates remain applicable after local type checking, the reference is ambiguous.
+#rule[
+  $ #sym.Omega #sym.tack.r x #sym.arrow.r (s_1, ..., s_n) $
+][
+  $ #sym.Omega ";" #sym.Pi #sym.tack.r x #sym.arrow.r (s_1, ..., s_n) $
+]
 
 == Preopen
 
-The preopen namespace is a default-open scope layer prepared by the prelude before user code is checked.
+The preopen namespace is a default-open layer prepared by the prelude before user code is resolved. It exposes field values from prelude-provided open bindings.
 
-Preopen exposes field values, not generated accessors. Each preopen exposure originates from a prelude-provided open binding whose value has a struct type.
+```lane2
+let open int_add_ops : Add[Int] = Add::{ op_add: int_add }
+```
 
-Prelude-provided preopen exposures are visible throughout user code.
+#rule[
+  $ op("prelude-open-bindings") = (s_1, ..., s_n) quad op("fields")(s_i) = O_i $
+][
+  $ #sym.Pi = op("merge")(O_1, ..., O_n) $
+]
 
-User-defined top-level open bindings contribute to the top-level open layer from their declaration point to the end of the top-level scope.
+Open layers shadow outer open layers and preopen. Ordinary value bindings and open exposures use separate shadowing.
 
-Preopen exposure name repetition is not an error at the declaration point. Repeated names form candidate sets and are reported only when a use cannot select exactly one candidate.
+```lane2
+{
+  open local_ops
+  op_add
+}
+```
 
-Top-level `open` contributes candidates to the top-level lexical layer while preserving ordered top-level value scope. Local `open` contributes candidates to the local lexical layer and shadows outer open layers, including preopen.
+#rule[
+  $ #sym.Omega #sym.tack.r x #sym.arrow.r O $
+][
+  $ #sym.Omega ";" #sym.Pi #sym.tack.r x #sym.arrow.r O $
+]
+
+#rule[
+  $ #sym.Omega #sym.tack.r x #sym.arrow.r () quad #sym.Pi #sym.tack.r x #sym.arrow.r O $
+][
+  $ #sym.Omega ";" #sym.Pi #sym.tack.r x #sym.arrow.r O $
+]
+
+== Value References and Candidate Selection
+
+An unqualified value reference combines the nearest ordinary value binding candidate with candidates exposed by the nearest applicable open layer.
+
+```lane2
+op_add
+```
+
+#rule[
+  $ #sym.Gamma #sym.tack.r x #sym.arrow.r P quad #sym.Omega ";" #sym.Pi #sym.tack.r x #sym.arrow.r O $
+][
+  $ (#sym.Delta, #sym.Gamma, #sym.Omega, #sym.Pi) #sym.tack.r x #sym.arrow.r op("combine")(P, O) $
+]
+
+Candidate selection uses only direct local typing information: an expected type, function call argument count and argument checking, and generic instantiation determined by the same local information. Lane2 does not choose a default candidate.
+
+```lane2
+op_add(1, 2) // selected by call shape and argument types
+```
+
+#rule[
+  $ R #sym.tack.r x #sym.arrow.r Q quad op("select")(Q, K) = s_V $
+][
+  $ R ";" K #sym.tack.r x #sym.arrow.r s_V $
+]
+
+#rule[
+  $ R #sym.tack.r x #sym.arrow.r Q quad op("select")(Q, K) = op("ambiguous") $
+][
+  $ R ";" K #sym.tack.r x #sym.arrow.r op("error")("ambiguous") $
+]
+
+A plain value reference starts with `.` and excludes open and preopen exposures.
+
+```lane2
+.op_add
+```
+
+#rule[
+  $ #sym.Gamma #sym.tack.r x #sym.arrow.r s_V $
+][
+  $ (#sym.Delta, #sym.Gamma, #sym.Omega, #sym.Pi) ";" K #sym.tack.r op("plain-ref")(x) #sym.arrow.r s_V $
+]
+
+== Special Resolution Forms
+
+An unqualified enum variant expression may resolve without qualification only when candidate selection chooses exactly one visible variant.
+
+```lane2
+some(1)
+```
+
+#rule[
+  $ op("variants-named")(#sym.Delta, v) = Q quad op("select")(Q, K) = s_R $
+][
+  $ (#sym.Delta, #sym.Gamma, #sym.Omega, #sym.Pi) ";" K #sym.tack.r op("variant-ref")(v) #sym.arrow.r s_R $
+]
+
+Field access first resolves and checks its base as a unique value, then selects a field owned by the base struct type.
+
+```lane2
+ops.op_add
+```
+
+#rule[
+  $ R ";" K #sym.tack.r x #sym.arrow.r s_V quad op("type-of")(s_V) = S[T_1, ..., T_n] quad op("field")(S, l) = s_F $
+][
+  $ R ";" K #sym.tack.r op("field-access")(x, l) #sym.arrow.r s_F $
+]
+
+Operator aliases first map to fixed ordinary operation names, then use ordinary value lookup and candidate selection. `&&` and `||` add only right-operand thunking after the operation value has been resolved.
+
+```lane2
+a + b  // resolves through op_add
+a && b // resolves through op_and, then thunks b
+```
+
+#rule[
+  $ op("operator-name")(op) = x quad R ";" K #sym.tack.r x #sym.arrow.r s_V $
+][
+  $ R ";" K #sym.tack.r op("operator")(op) #sym.arrow.r s_V $
+]
 
 = Expressions
 
