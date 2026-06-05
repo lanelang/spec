@@ -964,13 +964,13 @@ A conforming Lane2/Core v1 implementation provides these portable intrinsic name
 
 Other intrinsic names are implementation-defined unsafe builtins.
 
-`%bool_and`, `%bool_or`, `%bool_not`, and `%bool_equal` are not required intrinsics. The standard prelude defines boolean operations as ordinary Lane2 functions and open operation values using `if`; `&&` and `||` supply their right operands as thunks.
+`%bool_and`, `%bool_or`, `%bool_not`, and `%bool_equal` are not required intrinsics. The standard prelude defines boolean operations as ordinary Lane2 functions and open bindings using `if`; `&&` and `||` supply their right operands as thunks.
 
 = Prelude
 
 The standard prelude is implementation-supplied Lane2 source checked before user code. It is not a module system.
 
-Prelude declarations provide standard operation structs, primitive wrappers around required intrinsics, derived primitive operations written in Lane2, and open value declarations that populate the initial preopen namespace.
+Prelude declarations provide standard operation structs, primitive wrappers around required intrinsics, derived primitive operations written in Lane2, and prelude-provided open bindings that populate the initial preopen namespace.
 
 Prelude entries are ordinary Lane2 values and types. Operation structs are API conventions that group ordinary operation names.
 
@@ -1040,9 +1040,9 @@ struct Compare[T] {
 
 Operation laws are API conventions, not compiler-checked rules.
 
-== Standard Preopen Values
+== Standard Preopen Bindings
 
-The prelude may populate the initial preopen namespace with open value declarations. For example, primitive arithmetic and boolean operations can be exposed as follows:
+The prelude may populate the initial preopen namespace with prelude-provided open bindings. For example, primitive arithmetic and boolean operations can be exposed as follows:
 
 ```lane2
 let open int_add_ops : Add[Int] = Add::{ op_add: int_add }
@@ -1088,7 +1088,7 @@ Declarations introduce types, functions, values, and open scope extensions.
 
 Top-level declarations are described by the `topLevelDefinition` grammar in "Syntax and Grammar".
 
-Top-level forms include struct declarations, enum declarations, named function declarations, typed value declarations, open value declarations, and open declarations.
+Top-level forms include struct declarations, enum declarations, named function declarations, typed value declarations, open bindings, and open declarations.
 
 == Struct Declarations
 
@@ -1163,15 +1163,15 @@ Named top-level `let` declarations must include type annotations.
 
 Local `let` declarations may omit type annotations when their initializer can synthesize a type by local type inference.
 
-An open value declaration has the form `let open name ... = expression`. It is syntax sugar for a value declaration immediately followed by `open name`.
+An open binding has the form `let open name ... = expression`. It is syntax sugar for a value declaration immediately followed by `open name`.
 
-Top-level open value declarations must include type annotations because all top-level value declarations must include type annotations:
+Top-level open bindings must include type annotations because all top-level value declarations must include type annotations:
 
 ```lane2
 let open int_ops : Add[Int] = Add::{ op_add: int_add }
 ```
 
-Local open value declarations may omit type annotations when their initializer can synthesize a unique struct type:
+Local open bindings may omit type annotations when their initializer can synthesize a unique struct type:
 
 ```lane2
 {
@@ -1180,7 +1180,7 @@ Local open value declarations may omit type annotations when their initializer c
 }
 ```
 
-Open value declarations are not forward-visible and are not recursively open.
+Open bindings are not forward-visible and are not recursively open.
 
 = Scopes and Bindings
 
@@ -1321,17 +1321,13 @@ An unqualified value reference combines the nearest plain binding candidate with
 
 == Preopen
 
-The preopen namespace is a default-open scope layer populated by open value declarations checked before user code.
+The preopen namespace is a default-open scope layer prepared by the prelude before user code is checked.
 
-```lane2
-let open int_ops : Add[Int] = Add::{ op_add: int_add }
-```
+Preopen exposes field values, not generated accessors. Each preopen exposure originates from a prelude-provided open binding whose value has a struct type.
 
-An open value declaration must have a struct type before it can expose fields. It exposes field values, not generated accessors.
+Prelude-provided preopen exposures are visible throughout user code.
 
-Prelude-provided open value declarations are checked before user code, so their preopen entries are visible throughout user code.
-
-User-defined top-level open value declarations extend preopen from their declaration point to the end of the top-level scope.
+User-defined top-level open bindings contribute to the top-level open layer from their declaration point to the end of the top-level scope.
 
 Preopen exposure name repetition is not an error at the declaration point. Repeated names form candidate sets and are reported only when a use cannot select exactly one candidate.
 
