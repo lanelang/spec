@@ -1104,21 +1104,6 @@ Functions are uncurried. There is no automatic currying or partial application.
 
 Function definitions use block bodies:
 
-```text
-functionDeclaration:
-    'fn' [ typeParameters ] functionName '(' [ parameter { ',' parameter } [ ',' ] ] ')' '->' type block
-
-parameter:
-    valueName ':' type
-
-functionLiteral:
-    'fn' [ typeParameters ] '(' [ functionLiteralParameter { ',' functionLiteralParameter } [ ',' ] ] ')' [ '->' type ] block
-
-functionLiteralParameter:
-    valueName
-  | valueName ':' type
-```
-
 ```lane2
 fn add(a : Int, b : Int) -> Int {
   a + b
@@ -1341,32 +1326,6 @@ Expressions compute values. Lane2 v1 is expression-oriented and has no expressio
 
 A block expression contains local items followed by one final expression.
 
-```text
-block:
-    '{' { localItem } expression '}'
-
-localItem:
-    localLet
-  | localOpenLet
-  | localFunctionDeclaration
-  | openDeclaration
-
-localLet:
-    'let' valueName [ ':' type ] '=' expression
-
-localOpenLet:
-    'let' 'open' valueName [ ':' type ] '=' expression
-
-topLevelLet:
-    'let' valueName ':' type '=' expression
-
-topLevelOpenLet:
-    'let' 'open' valueName ':' type '=' expression
-
-openDeclaration:
-    'open' valueName
-```
-
 ```lane2
 {
   let x = 1
@@ -1477,28 +1436,6 @@ Placeholders are not supported.
 
 = Structs, Enums, and Open
 
-```text
-structDeclaration:
-    'struct' typeName [ typeParameters ] '{' { structMember } '}'
-
-structMember:
-    fieldDeclaration
-  | fieldForwarding
-
-fieldDeclaration:
-    fieldName ':' type
-
-fieldForwarding:
-    'open' fieldName
-
-structLiteral:
-    typeName [ typeArguments ] '::' '{' structLiteralField { ',' structLiteralField } [ ',' ] '}'
-
-structLiteralField:
-    fieldName
-  | fieldName ':' expression
-```
-
 Struct literals are qualified:
 
 ```lane2
@@ -1536,20 +1473,6 @@ p.x
 V1 has no field visibility modifiers. Every struct field is accessible wherever the struct value is accessible.
 
 == Enums
-
-```text
-enumDeclaration:
-    'enum' typeName [ typeParameters ] '{' { enumVariant } '}'
-
-enumVariant:
-    variantName [ '(' [ type { ',' type } [ ',' ] ] ')' ]
-
-qualifiedVariantExpression:
-    typeName [ typeArguments ] '::' variantName [ '(' [ expression { ',' expression } [ ',' ] ] ')' ]
-
-unqualifiedVariantExpression:
-    variantName [ '(' [ expression { ',' expression } [ ',' ] ] ')' ]
-```
 
 Enum variants are scoped to their enum.
 
@@ -1637,31 +1560,6 @@ Struct field forwarding affects only what is exposed by opening the containing s
 = Pattern Matching
 
 `match` is an expression:
-
-```text
-matchExpression:
-    'match' expression '{' { matchArm } '}'
-
-matchArm:
-    pattern '=>' expression
-
-pattern:
-    '_'
-  | valueName
-  | literal
-  | qualifiedVariantPattern
-  | structPattern
-
-qualifiedVariantPattern:
-    typeName '::' variantName [ '(' [ pattern { ',' pattern } [ ',' ] ] ')' ]
-
-structPattern:
-    typeName '::' '{' structPatternField { ',' structPatternField } [ ',' ] '}'
-
-structPatternField:
-    fieldName
-  | fieldName ':' pattern
-```
 
 ```lane2
 match value {
