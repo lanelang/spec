@@ -24,6 +24,8 @@
 #show raw.where(block: true): it => code-box(it)
 #show math.equation.where(block: true): it => math-box(align(center, it))
 
+#let lane-source(path) = raw(read(path), block: true, lang: "lane2")
+
 #let math-list(..items) = stack(
   dir: ttb,
   spacing: 6pt,
@@ -974,109 +976,13 @@ Prelude declarations provide standard operation structs, primitive wrappers arou
 
 Prelude entries are ordinary Lane2 values and types. Operation structs are API conventions that group ordinary operation names.
 
-== Standard Operation Structs
-
-Arithmetic operations:
-
-```lane2
-struct Add[T] {
-  op_add : (T, T) -> T
-}
-
-struct Sub[T] {
-  op_sub : (T, T) -> T
-}
-
-struct Mul[T] {
-  op_mul : (T, T) -> T
-}
-
-struct Div[T] {
-  op_div : (T, T) -> T
-}
-
-struct Rem[T] {
-  op_rem : (T, T) -> T
-}
-
-struct Neg[T] {
-  op_neg : (T) -> T
-}
-```
-
-Boolean operations:
-
-```lane2
-struct And {
-  op_and : (Bool, () -> Bool) -> Bool
-}
-
-struct Or {
-  op_or : (Bool, () -> Bool) -> Bool
-}
-
-struct Not {
-  op_not : (Bool) -> Bool
-}
-```
-
-Equality and ordering operations:
-
-```lane2
-struct Equal[T] {
-  op_equal : (T, T) -> Bool
-  op_not_equal : (T, T) -> Bool
-}
-
-struct Compare[T] {
-  equal_impl : Equal[T]
-  open equal_impl
-  op_less : (T, T) -> Bool
-  op_less_eq : (T, T) -> Bool
-  op_greater : (T, T) -> Bool
-  op_greater_eq : (T, T) -> Bool
-}
-```
-
 Operation laws are API conventions, not compiler-checked rules.
 
-== Standard Preopen Bindings
+== Standard Prelude Source
 
-The prelude may populate the initial preopen namespace with prelude-provided open bindings. For example, primitive arithmetic and boolean operations can be exposed as follows:
+The v1 standard prelude source is stored in `lane-std/prelude.lane` and rendered here:
 
-```lane2
-let open int_add_ops : Add[Int] = Add::{ op_add: int_add }
-let open int_sub_ops : Sub[Int] = Sub::{ op_sub: int_sub }
-let open int_mul_ops : Mul[Int] = Mul::{ op_mul: int_mul }
-let open int_div_ops : Div[Int] = Div::{ op_div: int_div }
-let open int_rem_ops : Rem[Int] = Rem::{ op_rem: int_rem }
-let open int_neg_ops : Neg[Int] = Neg::{ op_neg: int_neg }
-
-let int_equal_ops : Equal[Int] = make_equal(int_equal)
-let open int_compare_ops : Compare[Int] = make_compare(int_equal_ops, int_less)
-
-let open bool_and_ops : And = And::{ op_and: bool_and }
-let open bool_or_ops : Or = Or::{ op_or: bool_or }
-let open bool_not_ops : Not = Not::{ op_not: bool_not }
-let open bool_equal_ops : Equal[Bool] = Equal::{
-  op_equal: fn(a : Bool, b : Bool) {
-    if a {
-      b
-    } else {
-      bool_not(b)
-    }
-  },
-  op_not_equal: fn(a : Bool, b : Bool) {
-    if a {
-      bool_not(b)
-    } else {
-      b
-    }
-  },
-}
-
-let open string_equal_ops : Equal[String] = make_equal(string_equal)
-```
+#lane-source("../lane-std/prelude.lane")
 
 Boolean conjunction, disjunction, negation, and equality do not require boolean intrinsics; they can be defined with ordinary `if` expressions in the prelude.
 
