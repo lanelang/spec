@@ -1,0 +1,6 @@
+fn read_answer() -> Int {
+  answer
+}
+
+let answer : Int = 42
+

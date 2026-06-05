@@ -1,0 +1,11 @@
+fn weird_add(a : Int, b : Int) -> Int {
+  a
+}
+
+let weird_add_ops : Add[Int] = Add::{ add: weird_add }
+
+fn use_weird_add(a : Int, b : Int) -> Int {
+  open weird_add_ops
+  a + b
+}
+

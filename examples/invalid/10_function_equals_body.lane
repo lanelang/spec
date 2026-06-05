@@ -1,0 +1,3 @@
+// invalid: functions use block bodies, not equals-sign expression bodies
+fn add(a : Int, b : Int) -> Int = a + b
+

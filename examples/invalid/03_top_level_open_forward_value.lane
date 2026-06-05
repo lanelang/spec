@@ -1,0 +1,9 @@
+// invalid: top-level open may only open an already available value
+open constants
+
+struct Constants {
+  answer : Int
+}
+
+let constants : Constants = Constants::{ answer: 42 }
+

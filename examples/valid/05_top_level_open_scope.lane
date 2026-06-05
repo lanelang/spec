@@ -1,0 +1,15 @@
+struct Constants {
+  answer : Int
+  one : Int
+}
+
+let constants : Constants = Constants::{ answer: 42, one: 1 }
+
+open constants
+
+let next : Int = answer + one
+
+fn use_opened_constant() -> Int {
+  next
+}
+

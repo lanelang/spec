@@ -1,0 +1,23 @@
+struct Constants {
+  answer : Int
+}
+
+struct Environment {
+  constants : Constants
+  open constants
+  increment : (Int) -> Int
+}
+
+fn inc(value : Int) -> Int {
+  value + 1
+}
+
+let env : Environment = Environment::{
+  constants: Constants::{ answer: 42 },
+  increment: inc,
+}
+
+fn use_forwarded_field() -> Int {
+  open env
+  increment(answer)
+}
