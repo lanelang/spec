@@ -289,7 +289,7 @@ topLevelDeclaration ::=
   | enumDeclaration
   | functionDeclaration
   | topLevelLetDeclaration
-  | anonymousTopLevelLetDeclaration
+  | topLevelOpenLetDeclaration
   | openDeclaration
 
 structDeclaration ::=
@@ -323,11 +323,14 @@ parameter ::=
 topLevelLetDeclaration ::=
     "let" valueName space ":" space type "=" expression
 
-anonymousTopLevelLetDeclaration ::=
-    "let" space ":" space type "=" expression
+topLevelOpenLetDeclaration ::=
+    "let" "open" valueName space ":" space type "=" expression
 
 localLetDeclaration ::=
     "let" valueName typeAnnotation? "=" expression
+
+localOpenLetDeclaration ::=
+    "let" "open" valueName typeAnnotation? "=" expression
 
 typeAnnotation ::=
     space ":" space type
@@ -384,11 +387,15 @@ fieldExpression ::=
 primaryExpression ::=
     literal
   | valueName
+  | plainValueReference
   | qualifiedVariantExpression
   | structLiteral
   | builtinExpression
   | "(" expression ")"
   | "(" ")"
+
+plainValueReference ::=
+    "." valueName
 
 literal ::=
     intLiteral
@@ -426,6 +433,7 @@ block ::=
 
 localItem ::=
     localLetDeclaration
+  | localOpenLetDeclaration
   | functionDeclaration
   | openDeclaration
 
@@ -956,15 +964,15 @@ A conforming Lane2/Core v1 implementation provides these portable intrinsic name
 
 Other intrinsic names are implementation-defined unsafe builtins.
 
-`%bool_and`, `%bool_or`, `%bool_not`, and `%bool_equal` are not required intrinsics. The standard prelude defines boolean operations as ordinary Lane2 functions and anonymous operation values using `if`; `&&` and `||` supply their right operands as thunks.
+`%bool_and`, `%bool_or`, `%bool_not`, and `%bool_equal` are not required intrinsics. The standard prelude defines boolean operations as ordinary Lane2 functions and open operation values using `if`; `&&` and `||` supply their right operands as thunks.
 
 = Prelude
 
 The standard prelude is implementation-supplied Lane2 source checked before user code. It is not a module system.
 
-Prelude declarations provide standard operation structs, primitive wrappers around required intrinsics, derived primitive operations written in Lane2, and anonymous top-level values that populate the initial preopen namespace.
+Prelude declarations provide standard operation structs, primitive wrappers around required intrinsics, derived primitive operations written in Lane2, and open value declarations that populate the initial preopen namespace.
 
-Prelude entries are ordinary Lane2 values and types except where the compiler recognizes operation field pairs for operator aliases.
+Prelude entries are ordinary Lane2 values and types. Operation structs are API conventions that group ordinary operation names.
 
 == Standard Operation Structs
 
@@ -972,27 +980,27 @@ Arithmetic operations:
 
 ```lane2
 struct Add[T] {
-  add : (T, T) -> T
+  op_add : (T, T) -> T
 }
 
 struct Sub[T] {
-  sub : (T, T) -> T
+  op_sub : (T, T) -> T
 }
 
 struct Mul[T] {
-  mul : (T, T) -> T
+  op_mul : (T, T) -> T
 }
 
 struct Div[T] {
-  div : (T, T) -> T
+  op_div : (T, T) -> T
 }
 
 struct Rem[T] {
-  rem : (T, T) -> T
+  op_rem : (T, T) -> T
 }
 
 struct Neg[T] {
-  neg : (T) -> T
+  op_neg : (T) -> T
 }
 ```
 
@@ -1000,15 +1008,15 @@ Boolean operations:
 
 ```lane2
 struct And {
-  and : (Bool, () -> Bool) -> Bool
+  op_and : (Bool, () -> Bool) -> Bool
 }
 
 struct Or {
-  or : (Bool, () -> Bool) -> Bool
+  op_or : (Bool, () -> Bool) -> Bool
 }
 
 struct Not {
-  not : (Bool) -> Bool
+  op_not : (Bool) -> Bool
 }
 ```
 
@@ -1016,17 +1024,17 @@ Equality and ordering operations:
 
 ```lane2
 struct Equal[T] {
-  equal : (T, T) -> Bool
-  not_equal : (T, T) -> Bool
+  op_equal : (T, T) -> Bool
+  op_not_equal : (T, T) -> Bool
 }
 
 struct Compare[T] {
   equal_impl : Equal[T]
   open equal_impl
-  less : (T, T) -> Bool
-  less_eq : (T, T) -> Bool
-  greater : (T, T) -> Bool
-  greater_eq : (T, T) -> Bool
+  op_less : (T, T) -> Bool
+  op_less_eq : (T, T) -> Bool
+  op_greater : (T, T) -> Bool
+  op_greater_eq : (T, T) -> Bool
 }
 ```
 
@@ -1034,31 +1042,31 @@ Operation laws are API conventions, not compiler-checked rules.
 
 == Standard Preopen Values
 
-The prelude may populate the initial preopen namespace with anonymous top-level values. For example, primitive arithmetic and boolean operations can be exposed as follows:
+The prelude may populate the initial preopen namespace with open value declarations. For example, primitive arithmetic and boolean operations can be exposed as follows:
 
 ```lane2
-let : Add[Int] = Add::{ add: int_add }
-let : Sub[Int] = Sub::{ sub: int_sub }
-let : Mul[Int] = Mul::{ mul: int_mul }
-let : Div[Int] = Div::{ div: int_div }
-let : Rem[Int] = Rem::{ rem: int_rem }
-let : Neg[Int] = Neg::{ neg: int_neg }
+let open int_add_ops : Add[Int] = Add::{ op_add: int_add }
+let open int_sub_ops : Sub[Int] = Sub::{ op_sub: int_sub }
+let open int_mul_ops : Mul[Int] = Mul::{ op_mul: int_mul }
+let open int_div_ops : Div[Int] = Div::{ op_div: int_div }
+let open int_rem_ops : Rem[Int] = Rem::{ op_rem: int_rem }
+let open int_neg_ops : Neg[Int] = Neg::{ op_neg: int_neg }
 
 let int_equal_ops : Equal[Int] = make_equal(int_equal)
-let : Compare[Int] = make_compare(int_equal_ops, int_less)
+let open int_compare_ops : Compare[Int] = make_compare(int_equal_ops, int_less)
 
-let : And = And::{ and: bool_and }
-let : Or = Or::{ or: bool_or }
-let : Not = Not::{ not: bool_not }
-let : Equal[Bool] = Equal::{
-  equal: fn(a : Bool, b : Bool) {
+let open bool_and_ops : And = And::{ op_and: bool_and }
+let open bool_or_ops : Or = Or::{ op_or: bool_or }
+let open bool_not_ops : Not = Not::{ op_not: bool_not }
+let open bool_equal_ops : Equal[Bool] = Equal::{
+  op_equal: fn(a : Bool, b : Bool) {
     if a {
       b
     } else {
       bool_not(b)
     }
   },
-  not_equal: fn(a : Bool, b : Bool) {
+  op_not_equal: fn(a : Bool, b : Bool) {
     if a {
       bool_not(b)
     } else {
@@ -1067,7 +1075,7 @@ let : Equal[Bool] = Equal::{
   },
 }
 
-let : Equal[String] = make_equal(string_equal)
+let open string_equal_ops : Equal[String] = make_equal(string_equal)
 ```
 
 Boolean conjunction, disjunction, negation, and equality do not require boolean intrinsics; they can be defined with ordinary `if` expressions in the prelude.
@@ -1080,7 +1088,7 @@ Declarations introduce types, functions, values, and open scope extensions.
 
 Top-level declarations are described by the `topLevelDefinition` grammar in "Syntax and Grammar".
 
-Top-level forms include struct declarations, enum declarations, named function declarations, typed value declarations, anonymous typed value declarations, and open declarations.
+Top-level forms include struct declarations, enum declarations, named function declarations, typed value declarations, open value declarations, and open declarations.
 
 == Struct Declarations
 
@@ -1151,9 +1159,28 @@ let id = fn[A](value : A) {
 
 == Let Declarations
 
-Named top-level `let` declarations must include type annotations. Anonymous top-level `let` declarations must include type annotations and must have a struct type.
+Named top-level `let` declarations must include type annotations.
 
 Local `let` declarations may omit type annotations when their initializer can synthesize a type by local type inference.
+
+An open value declaration has the form `let open name ... = expression`. It is syntax sugar for a value declaration immediately followed by `open name`.
+
+Top-level open value declarations must include type annotations because all top-level value declarations must include type annotations:
+
+```lane2
+let open int_ops : Add[Int] = Add::{ op_add: int_add }
+```
+
+Local open value declarations may omit type annotations when their initializer can synthesize a unique struct type:
+
+```lane2
+{
+  let open ops = Add::{ op_add: int_add }
+  1 + 2
+}
+```
+
+Open value declarations are not forward-visible and are not recursively open.
 
 = Scopes and Bindings
 
@@ -1165,6 +1192,7 @@ Top-level value definitions and top-level `open` declarations follow ordered val
 
 - a top-level `let` initializer may refer only to values already available at that declaration point;
 - a top-level `open` may open only a value already available at that declaration point;
+- a top-level `let open` defines its value and opens it only from that declaration point forward;
 - a top-level function body may refer to any top-level value or function, even one declared later.
 
 Example:
@@ -1236,11 +1264,13 @@ fn f(n : Int) -> Int {
 
 Local value names may shadow earlier local value names.
 
+Ordinary value bindings in the same scope must have distinct names. Function parameters, local lets, top-level values, local functions, and pattern binders are ordinary value bindings.
+
 == Open Scope Extensions
 
 `open value` opens a struct value.
 
-The operand of `open` must be a visible value name with a struct type. It cannot be an arbitrary expression:
+The operand of `open` must be a visible value name. It cannot be an arbitrary expression:
 
 ```lane2
 open ops
@@ -1252,7 +1282,19 @@ This is invalid:
 open make_ops(10)
 ```
 
-An open scope extension exposes the struct field values as unqualified names from the declaration point to the end of the current lexical scope.
+The opened value must have a struct type after checking the target binding. The type can come from a type annotation or from an already checked earlier binding:
+
+```lane2
+{
+  let ops = Add::{ op_add: int_add }
+  open ops
+  1 + 2
+}
+```
+
+If the target is missing or is not a struct value, the `open` declaration is invalid at its declaration point.
+
+An open scope extension exposes the struct field values as unqualified candidates from the declaration point to the end of the current lexical layer.
 
 At top level, `open` extends to the end of the file:
 
@@ -1273,25 +1315,27 @@ Inside blocks, `open` is a local item and must appear before the final expressio
 }
 ```
 
-Local resolution uses the nearest preceding local binding or open scope extension, then falls back to preopen.
+Plain value bindings and open scope extensions use separate lexical shadowing. Plain value bindings shadow only other plain value bindings. Open scope extensions shadow only outer open scope extensions and preopen exposures.
+
+An unqualified value reference combines the nearest plain binding candidate with the candidates exposed by the nearest open scope layer. If multiple candidates remain applicable after local type checking, the reference is ambiguous.
 
 == Preopen
 
-The preopen namespace is a default-open namespace populated by anonymous top-level values.
+The preopen namespace is a default-open scope layer populated by open value declarations checked before user code.
 
 ```lane2
-let : Add[Int] = Add::{ add: int_add }
+let open int_ops : Add[Int] = Add::{ op_add: int_add }
 ```
 
-An anonymous top-level value must have a struct type. It exposes field values, not generated accessors.
+An open value declaration must have a struct type before it can expose fields. It exposes field values, not generated accessors.
 
-Prelude-provided anonymous values are checked before user code, so their preopen entries are visible throughout user code.
+Prelude-provided open value declarations are checked before user code, so their preopen entries are visible throughout user code.
 
-User-defined anonymous top-level values extend preopen from their declaration point to the end of the top-level scope.
+User-defined top-level open value declarations extend preopen from their declaration point to the end of the top-level scope.
 
-Preopen conflicts are errors.
+Preopen exposure name repetition is not an error at the declaration point. Repeated names form candidate sets and are reported only when a use cannot select exactly one candidate.
 
-Top-level `open` belongs to the global layer and conflicts with ordinary top-level names or preopened names. Local `open` may shadow preopen inside its lexical scope.
+Top-level `open` contributes candidates to the top-level lexical layer while preserving ordered top-level value scope. Local `open` contributes candidates to the local lexical layer and shadows outer open layers, including preopen.
 
 = Expressions
 
@@ -1307,17 +1351,21 @@ block:
 
 localItem:
     localLet
+  | localOpenLet
   | localFunctionDeclaration
   | openDeclaration
 
 localLet:
     'let' valueName [ ':' type ] '=' expression
 
+localOpenLet:
+    'let' 'open' valueName [ ':' type ] '=' expression
+
 topLevelLet:
     'let' valueName ':' type '=' expression
 
-anonymousTopLevelLet:
-    'let' ':' type '=' expression
+topLevelOpenLet:
+    'let' 'open' valueName ':' type '=' expression
 
 openDeclaration:
     'open' valueName
@@ -1370,6 +1418,22 @@ Both branches must have the same type.
 
 == Calls, Field Access, and Pipeline
 
+An unqualified value reference may denote a candidate set. Candidate selection uses direct local typing information:
+
+- a direct expected type, including expected result types for function bodies and branch expressions;
+- function call argument count and argument checking against candidate parameter types;
+- generic instantiation determined by the same direct local typing information.
+
+Lane2 does not choose a default candidate. If more than one candidate remains applicable, the reference is ambiguous. Diagnostics for ambiguous candidates should list source-level disambiguation paths such as `.name` for an ordinary binding and `owner.field` for an opened field.
+
+A plain value reference begins with `.` and resolves only ordinary lexical value bindings:
+
+```lane2
+.op_add
+```
+
+Plain value references still follow ordinary lexical shadowing among ordinary bindings, but exclude open and preopen exposures.
+
 Function call:
 
 ```lane2
@@ -1381,6 +1445,8 @@ Field access:
 ```lane2
 ops.add
 ```
+
+The base of field access must resolve and check as a unique value before field selection. Field access does not search through an unresolved candidate set for a base value.
 
 Field access followed by call:
 
@@ -1559,14 +1625,16 @@ A struct declaration may contain `open field` entries:
 struct Compare[T] {
   equal_impl : Equal[T]
   open equal_impl
-  less : (T, T) -> Bool
-  less_eq : (T, T) -> Bool
-  greater : (T, T) -> Bool
-  greater_eq : (T, T) -> Bool
+  op_less : (T, T) -> Bool
+  op_less_eq : (T, T) -> Bool
+  op_greater : (T, T) -> Bool
+  op_greater_eq : (T, T) -> Bool
 }
 ```
 
-When a value of this struct type is opened, forwarded fields are exposed too.
+When a value of this struct type is opened, forwarded fields are exposed too. Direct fields and forwarded fields from the same opened struct value contribute to the same open exposure layer.
+
+Repeated exposed names are not conflicts at the open declaration point. Ambiguity is reported only at use sites when candidate selection cannot choose exactly one value.
 
 Struct field forwarding affects only what is exposed by opening the containing struct value. It does not open the field inside ordinary function bodies.
 
@@ -1653,39 +1721,43 @@ Rest patterns, spread patterns, guards, or-patterns, as-patterns, and `is` patte
 
 = Operators
 
-Operators are aliases for recognized prelude operation fields.
+Operators are aliases for fixed ordinary operation names.
 
-There is no type-directed instance search. An operator is available only when the relevant operation field is available through preopen or an open scope extension.
+There is no trait, typeclass, or instance search. An operator is available only when the corresponding operation name resolves to a suitable value through ordinary value lookup and open candidate selection.
 
-Primitive operators are not special-cased. For example, `1 + 2` requires an available `Add::add` operation for `Int`.
+Primitive operators are not special-cased. For example, `1 + 2` resolves through the ordinary name `op_add`; that name can be supplied by a normal binding or by opening a struct value with an `op_add` field.
 
 Recognized operator mappings:
 
 #figure(caption: [Recognized operator mappings])[
   #table(
     columns: (auto, 1fr),
-    [Operator], [Operation],
-    [`+`], [`Add::add`],
-    [`-`], [`Sub::sub`],
-    [`*`], [`Mul::mul`],
-    [`/`], [`Div::div`],
-    [`%`], [`Rem::rem`],
-    [unary `-`], [`Neg::neg`],
-    [`==`], [`Equal::equal`],
-    [`!=`], [`Equal::not_equal`],
-    [`<`], [`Compare::less`],
-    [`<=`], [`Compare::less_eq`],
-    [`>`], [`Compare::greater`],
-    [`>=`], [`Compare::greater_eq`],
-    [`&&`], [`And::and` with a thunked right operand],
-    [`||`], [`Or::or` with a thunked right operand],
-    [`!`], [`Not::not`],
+    [Operator], [Operation name],
+    [`+`], [`op_add`],
+    [`-`], [`op_sub`],
+    [`*`], [`op_mul`],
+    [`/`], [`op_div`],
+    [`%`], [`op_rem`],
+    [unary `-`], [`op_neg`],
+    [`==`], [`op_equal`],
+    [`!=`], [`op_not_equal`],
+    [`<`], [`op_less`],
+    [`<=`], [`op_less_eq`],
+    [`>`], [`op_greater`],
+    [`>=`], [`op_greater_eq`],
+    [`&&`], [`op_and` with a thunked right operand],
+    [`||`], [`op_or` with a thunked right operand],
+    [`!`], [`op_not`],
   )
 ]
 
-`&&` and `||` are short-circuit boolean operators. They are recognized mappings to `And::and` and `Or::or`, but the right operand is passed as a zero-argument function instead of being evaluated before the operation call.
+Operation names such as `op_add` are ordinary value names, not reserved words. Lane2 v1 does not allow user-defined operator tokens or user-defined operator mappings.
 
-`a && b` desugars to a call equivalent to `and(a, fn() { b })` after resolving an available `And::and` operation. `a || b` follows the same rule with `Or::or`. Both operators are defined only for `Bool`.
+`&&` and `||` are short-circuit boolean operators. They resolve through `op_and` and `op_or`, but the right operand is passed as a zero-argument function instead of being evaluated before the operation call.
+
+`a && b` desugars to a call equivalent to `op_and(a, fn() { b })` after resolving an available `op_and` operation. `a || b` follows the same rule with `op_or`. Both operators are defined only for `Bool` in v1.
+
+Ordinary calls to `op_and` and `op_or` are strict. Only the `&&` and `||` operator syntaxes thunk the right operand.
 
 Concrete expression precedence, associativity, and unary/binary disambiguation follow the MoonBit parser reference where Lane2 has not deliberately removed a feature.
 
@@ -1703,7 +1775,7 @@ The `Unit` value is written explicitly as `()`.
 
 Empty blocks are invalid. A block must contain exactly one final expression after any local items.
 
-Function calls evaluate all arguments before entering the function body. The only v1 operator forms that delay a subexpression are `&&` and `||`, which pass the right operand as a thunk to the resolved prelude operation.
+Function calls evaluate all arguments before entering the function body. The only v1 operator forms that delay a subexpression are `&&` and `||`, which pass the right operand as a thunk to the resolved `op_and` or `op_or` value.
 
 = Undefined Behavior
 
