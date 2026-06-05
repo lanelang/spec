@@ -573,6 +573,9 @@ Comments are trivia. Comments do not appear in the syntactic grammar.
     [$op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m)$], [struct definition],
     [$op("enum")(A_1, ..., A_n; v_j(P_(j,1), ..., P_(j,m_j)))$], [enum definition],
     [$op("params")(D) = (A_1, ..., A_n)$], [custom type parameters],
+    [$D #sym.tack.r v : (P_1, ..., P_m)$], [variant payload sequence declared by a custom type definition],
+    [$D #sym.tack.r op("variants")(v_1, ..., v_q)$], [variant sequence declared by a custom type definition],
+    [$#sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v #sym.arrow.r (Q_1, ..., Q_m)$], [instantiated variant payload sequence],
     [$#sym.sigma$], [type substitution environment],
     [$#sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n]$], [substitution environment binding],
     [$U[T_1 #sym.slash A_1, ..., T_n #sym.slash A_n]$], [direct type substitution],
@@ -583,9 +586,7 @@ Comments are trivia. Comments do not appear in the syntactic grammar.
     [$T #sym.eq.triple U$], [type equality],
     [$#sym.Gamma #sym.tack.r e : T$], [expression typing],
     [$op("fields")(S[T_1, ..., T_n]) = (l_1 : Q_1, ..., l_m : Q_m)$], [instantiated struct fields],
-    [$op("payloads")(E[T_1, ..., T_n], v) = (Q_1, ..., Q_m)$], [instantiated variant payloads],
-    [$op("binders")(#sym.Gamma; x_1 : Q_1, ..., x_m : Q_m) = #sym.Gamma'$], [extended pattern-binder context],
-    [$op("arm-type")(E[T_1, ..., T_n], R)$], [typed enum match arm],
+    [$op("arm-type")(E[T_1, ..., T_n], v, R)$], [typed enum match arm],
     [$frac(P, Q)$], [rule with premise $P$ and conclusion $Q$],
     [$op("name")$], [abstract syntax constructor],
   )
@@ -742,7 +743,13 @@ fn[A1, ..., An](x1 : T1, ..., xm : Tm) -> R { e } // generic function literal
 fn[A1, ..., An] f(x1 : T1, ..., xm : Tm) -> R { e } // generic function definition
 ```
 
-A generic function literal or named generic function introduces a generic function value.
+A generic function literal or named generic function introduces a generic function value. The function body is checked under the declared type parameters and value parameters.
+
+#rule[
+  $ #sym.Delta; #sym.Theta, A_1, ..., A_n #sym.tack.r (T_1, ..., T_m) -> R " type" quad #sym.Gamma, x_1 : T_1, ..., x_m : T_m #sym.tack.r e : R $
+][
+  $ #sym.Gamma #sym.tack.r op("fn")([A_1, ..., A_n], (x_1 : T_1), ..., (x_m : T_m), R, e) : #sym.forall A_1, ..., A_n "." (T_1, ..., T_m) -> R $
+]
 
 *Generic function elimination.*
 
@@ -751,6 +758,14 @@ Generic function calls instantiate type parameters at the use site when the use 
 ```lane2
 f(a1, ..., am) // generic function call with inferred type arguments
 ```
+
+#rule[
+  $ #sym.Gamma #sym.tack.r f : #sym.forall A_1, ..., A_n "." (T_1, ..., T_m) -> R quad #sym.sigma = [U_1 #sym.slash A_1, ..., U_n #sym.slash A_n] quad #sym.Gamma #sym.tack.r a_1 : T_1 #sym.sigma quad ... quad #sym.Gamma #sym.tack.r a_m : T_m #sym.sigma $
+][
+  $ #sym.Gamma #sym.tack.r f(a_1, ..., a_m) : R #sym.sigma $
+]
+
+The substitution #math.inline[$#sym.sigma$] must be the unique substitution selected by local type inference for the call site. If no unique substitution exists, the call is ill-typed.
 
 *Generic function type equality.*
 
@@ -762,25 +777,9 @@ f(a1, ..., am) // generic function call with inferred type arguments
 
 Generic function type equality compares the number of type parameters and the function types under corresponding bound type parameters.
 
-== Nominal Custom Types
+== Nominal Type Constructors
 
-Struct and enum declarations introduce nominal custom type definitions in #sym.Delta.
-
-```lane2
-struct S[A1, ..., An] {
-  l1 : F1
-  ...
-  lm : Fm
-} // struct definition
-```
-
-```lane2
-enum E[A1, ..., An] {
-  v1(P11, ..., P1m1)
-  ...
-  vj(Pj1, ..., Pjmj)
-} // enum definition
-```
+Struct and enum declarations introduce nominal custom type definitions in #sym.Delta. This section specifies the shared treatment of nominal type constructors. Struct-specific and enum-specific declaration rules are specified in "Struct Types" and "Enum Types".
 
 Top-level custom type declarations are checked in two phases. First, all top-level struct and enum constructors are collected into #sym.Delta as declaration-shape bindings. Second, every field type and variant payload type is checked under the collected #sym.Delta and the declaration's type parameters. This permits mutually recursive custom types.
 
@@ -792,22 +791,6 @@ enum E[A1, ..., An] { vj(Pj1, ..., Pjmj) }
 ```
 
 $ S #sym.arrow.r op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta quad E #sym.arrow.r op("enum")(A_1, ..., A_n; v_1(P_1), ..., v_q(P_q)) #sym.in #sym.Delta $
-
-*Struct declaration well-formedness.* A struct declaration is well-formed when every declared field type is well-formed under the collected type-constructor context and the struct's type parameters.
-
-#rule[
-  $ S #sym.arrow.r op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta quad #sym.forall i "." #sym.Delta; A_1, ..., A_n #sym.tack.r F_i " type" $
-][
-  $ #sym.Delta #sym.tack.r op("struct-decl")(S; A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) " declaration" $
-]
-
-*Enum declaration well-formedness.* An enum declaration is well-formed when every declared variant payload type is well-formed under the collected type-constructor context and the enum's type parameters.
-
-#rule[
-  $ E #sym.arrow.r op("enum")(A_1, ..., A_n; v_1(P_1), ..., v_q(P_q)) #sym.in #sym.Delta quad #sym.forall j,k "." #sym.Delta; A_1, ..., A_n #sym.tack.r P_(j,k) " type" $
-][
-  $ #sym.Delta #sym.tack.r op("enum-decl")(E; A_1, ..., A_n; v_1(P_1), ..., v_q(P_q)) " declaration" $
-]
 
 *Nominal formation.* A nominal type application is well-formed when its custom type constructor is visible, the number of type arguments matches the declaration's type parameters, and every type argument is well-formed.
 
@@ -826,6 +809,24 @@ $ S #sym.arrow.r op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) #sym.in 
 ]
 
 == Struct Types
+
+*Struct declaration well-formedness.* A struct declaration is well-formed when every declared field type is well-formed under the collected type-constructor context and the struct's type parameters.
+
+```lane2
+struct S[A1, ..., An] {
+  l1 : F1
+  ...
+  lm : Fm
+} // struct definition
+```
+
+$ frac(
+  display(cases(
+    #[$ S #sym.arrow.r op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta $],
+    #[$ #sym.forall i "." #sym.Delta; A_1, ..., A_n #sym.tack.r F_i " type" $],
+  )),
+  #sym.Delta #sym.tack.r op("struct-decl")(S; A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) " declaration",
+) $
 
 *Struct introduction.* A qualified struct literal introduces a struct value. It must provide every declared field exactly once. Source field order is not significant; the rule below uses declaration order.
 
@@ -861,24 +862,53 @@ Struct values are also eliminated by struct patterns and exposed by `open`; thei
 
 == Enum Types
 
-*Enum variant introduction.* A qualified enum variant expression introduces an enum value. The payload expressions must match the declared variant payload types after substituting the enum type arguments.
+*Enum declaration well-formedness.* An enum declaration is well-formed when every declared variant payload type is well-formed under the collected type-constructor context and the enum's type parameters.
 
 ```lane2
-E[T1, ..., Tn]::v(e1, ..., em) // qualified variant expression
-v(e1, ..., em) // unqualified variant expression after unambiguous resolution
+enum E[A1, ..., An] {
+  v1(P11, ..., P1m1)
+  ...
+  vj(Pj1, ..., Pjmj)
+} // enum definition
 ```
 
-#rule[
-  $ E #sym.arrow.r op("enum")(A_1, ..., A_n; ..., v(P_1, ..., P_m), ...) #sym.in #sym.Delta $
-][
-  $ op("payloads")(E[T_1, ..., T_n], v) = (P_1[T_1 #sym.slash A_1, ..., T_n #sym.slash A_n], ..., P_m[T_1 #sym.slash A_1, ..., T_n #sym.slash A_n]) $
-]
+$ frac(
+  display(cases(
+    #[$ E #sym.arrow.r op("enum")(A_1, ..., A_n; v_1(P_1), ..., v_q(P_q)) #sym.in #sym.Delta $],
+    #[$ #sym.forall j,k "." #sym.Delta; A_1, ..., A_n #sym.tack.r P_(j,k) " type" $],
+  )),
+  #sym.Delta #sym.tack.r op("enum-decl")(E; A_1, ..., A_n; v_1(P_1), ..., v_q(P_q)) " declaration",
+) $
 
-#rule[
-  $ op("payloads")(E[T_1, ..., T_n], v) = (Q_1, ..., Q_m) quad #sym.Gamma #sym.tack.r e_1 : Q_1 quad ... quad #sym.Gamma #sym.tack.r e_m : Q_m $
-][
-  $ #sym.Gamma #sym.tack.r op("variant")(E[T_1, ..., T_n], v, e_1, ..., e_m) : E[T_1, ..., T_n] $
-]
+*Variant constructor introduction.* Each declared variant constructor is an introduction form for values of its owning enum type. A variant constructor does not introduce a separate variant type. The payload expressions must match the declared variant payload types after substituting the enum type arguments.
+
+```lane2
+E[T1, ..., Tn]::v(e1, ..., em) // qualified variant constructor call
+v(e1, ..., em) // unqualified constructor call after unambiguous resolution
+```
+
+For an enum declaration shape #math.inline[$D$], #math.inline[$D #sym.tack.r v : (P_1, ..., P_m)$] states that #math.inline[$D$] declares variant #math.inline[$v$] with payload type sequence #math.inline[$(P_1, ..., P_m)$].
+
+The judgment #math.inline[$#sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v #sym.arrow.r (Q_1, ..., Q_m)$] instantiates that payload sequence at the enum type arguments.
+
+$ frac(
+  display(cases(
+    #[$ E #sym.arrow.r D #sym.in #sym.Delta $],
+    #[$ D #sym.tack.r v : (P_1, ..., P_m) $],
+    #[$ op("params")(D) = (A_1, ..., A_n) $],
+    #[$ #sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n] $],
+    #[$ #sym.forall i "." #sym.Delta; #sym.Theta #sym.tack.r T_i " type" $],
+  )),
+  #sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v #sym.arrow.r (P_1 #sym.sigma, ..., P_m #sym.sigma),
+) $
+
+$ frac(
+  display(cases(
+    #[$ #sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v #sym.arrow.r (Q_1, ..., Q_m) $],
+    #[$ #sym.forall k "." #sym.Gamma #sym.tack.r e_k : Q_k $],
+  )),
+  #sym.Gamma #sym.tack.r op("variant")(E[T_1, ..., T_n], v, e_1, ..., e_m) : E[T_1, ..., T_n],
+) $
 
 An unqualified enum variant expression is typed by the same rule after name resolution has selected exactly one visible enum variant.
 
@@ -892,23 +922,23 @@ match e {
 }
 ```
 
-#rule[
-  $ op("payloads")(E[T_1, ..., T_n], v) = (Q_1, ..., Q_m) $
-][
-  $ op("binders")(#sym.Gamma; x_1 : Q_1, ..., x_m : Q_m) = #sym.Gamma' $
-]
+$ frac(
+  display(cases(
+    #[$ #sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v #sym.arrow.r (Q_1, ..., Q_m) $],
+    #[$ #sym.Gamma, x_1 : Q_1, ..., x_m : Q_m #sym.tack.r b : R $],
+  )),
+  #sym.Gamma #sym.tack.r op("arm")(v(x_1, ..., x_m) => b) : op("arm-type")(E[T_1, ..., T_n], v, R),
+) $
 
-#rule[
-  $ op("payloads")(E[T_1, ..., T_n], v) = (Q_1, ..., Q_m) quad op("binders")(#sym.Gamma; x_1 : Q_1, ..., x_m : Q_m) = #sym.Gamma' quad #sym.Gamma' #sym.tack.r b : R $
-][
-  $ #sym.Gamma #sym.tack.r op("arm")(v(x_1, ..., x_m) => b) : op("arm-type")(E[T_1, ..., T_n], R) $
-]
-
-#rule[
-  $ #sym.Gamma #sym.tack.r e : E[T_1, ..., T_n] quad E #sym.arrow.r op("enum")(A_1, ..., A_n; v_1, ..., v_q) #sym.in #sym.Delta quad #sym.Gamma #sym.tack.r a_j : op("arm-type")(E[T_1, ..., T_n], R) $
-][
-  $ #sym.Gamma #sym.tack.r op("match")(e; a_1, ..., a_q) : R $
-]
+$ frac(
+  display(cases(
+    #[$ #sym.Gamma #sym.tack.r e : E[T_1, ..., T_n] $],
+    #[$ E #sym.arrow.r D #sym.in #sym.Delta $],
+    #[$ D #sym.tack.r op("variants")(v_1, ..., v_q) $],
+    #[$ #sym.forall j "." #sym.Gamma #sym.tack.r a_j : op("arm-type")(E[T_1, ..., T_n], v_j, R) $],
+  )),
+  #sym.Gamma #sym.tack.r op("match")(e; a_1, ..., a_q) : R,
+) $
 
 Pattern syntax and exhaustiveness diagnostics are specified in "Pattern Matching".
 
