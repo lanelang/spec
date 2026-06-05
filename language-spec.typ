@@ -87,7 +87,7 @@ Future drafts may mark individual features as experimental when their surface sy
 
 == Feedback
 
-Design feedback is tracked in the Lane2 repository. Implementation changes should update this specification, `docs/language-v1.md`, `docs/prelude-v1.md`, `CONTEXT.md`, and ADRs when the change affects user-visible semantics.
+Design feedback is tracked in the Lane2 repository. Implementation changes should update this specification, `CONTEXT.md`, and ADRs when the change affects user-visible semantics.
 
 == Reference
 
