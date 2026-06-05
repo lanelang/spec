@@ -167,18 +167,15 @@ reservedWord ::=
   | "import"
   | "pub"
   | "type"
-  | "trait"
-  | "interface"
-  | "mut"
   | "return"
 
 identifier ::=
-    xidStart identifierContinue*
+    asciiIdentifierStart identifierContinue*
   | "_" identifierContinue+
 
 identifierContinue ::=
     "_"
-  | xidContinue
+  | asciiIdentifierStart
   | decimalDigit
 
 boolLiteral ::=
@@ -268,11 +265,15 @@ asciiHexDigit ::=
   | "a" | "b" | "c" | "d" | "e" | "f"
   | "A" | "B" | "C" | "D" | "E" | "F"
 
-xidStart ::=
-    any Unicode code point with the XID_Start property
+asciiIdentifierStart ::=
+    asciiUppercaseLetter
+  | asciiLowercaseLetter
 
-xidContinue ::=
-    any Unicode code point with the XID_Continue property
+asciiUppercaseLetter ::=
+    any ASCII code point from U+0041 through U+005A
+
+asciiLowercaseLetter ::=
+    any ASCII code point from U+0061 through U+007A
 ```
 
 Lexical analysis uses maximal munch. If more than one token class matches the same maximal source span, keyword, reservedWord, and boolLiteral take priority over identifier.
