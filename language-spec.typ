@@ -57,7 +57,8 @@ Lane2/Core v1 covers:
 
 - source structure and declarations;
 - lexical scope and name resolution;
-- nominal struct and enum types;
+- nominal struct and enum types, including existential type members and
+  variant-local hidden type binders;
 - function and block expressions;
 - local type inference;
 - pattern matching;
@@ -295,10 +296,10 @@ topLevelDeclaration ::=
   | offerValueDeclaration
 
 structDeclaration ::=
-    "struct" typeName typeParameters? "{" structMember* "}"
+    "struct" typeName typeParameters? "{" structTypeMember* structFieldDeclaration* "}"
 
-structMember ::=
-    structFieldDeclaration
+structTypeMember ::=
+    "type" typeName space ":" space kind
 
 structFieldDeclaration ::=
     fieldModifier? fieldName space ":" space type
@@ -310,7 +311,7 @@ enumDeclaration ::=
     "enum" typeName typeParameters? "{" enumVariant* "}"
 
 enumVariant ::=
-    variantName enumPayload?
+    variantName typeParameters? enumPayload?
 
 enumPayload ::=
     "(" commaSeparatedTypes? ")"
@@ -334,6 +335,9 @@ topLevelLetDeclaration ::=
 localLetDeclaration ::=
     "let" valueName typeAnnotation? "=" expression
 
+localPatternLetDeclaration ::=
+    "let" pattern "=" expression
+
 typeAnnotation ::=
     space ":" space type
 
@@ -352,6 +356,11 @@ typeArguments ::=
 
 typeParameters ::=
     "[" commaSeparatedTypeParameters "]"
+
+kind ::=
+    "Type"
+  | "Type" "->" kind
+  | "(" kind ")"
 
 functionType ::=
     typeParameters? "(" commaSeparatedTypes? ")" "->" type
@@ -405,7 +414,10 @@ literal ::=
   | boolLiteral
 
 qualifiedVariantExpression ::=
-    typeName typeArguments? "::" variantName variantArguments?
+    typeName typeArguments? "::" variantName variantTypeArguments? variantArguments?
+
+variantTypeArguments ::=
+    "[" commaSeparatedTypes "]"
 
 variantArguments ::=
     "(" commaSeparatedExpressions? ")"
@@ -416,6 +428,7 @@ structLiteral ::=
 structLiteralField ::=
     fieldName
   | fieldName ":" expression
+  | typeName "=" type
 
 builtinExpression ::=
     "builtin" "(" stringLiteral ")"
@@ -438,6 +451,7 @@ block ::=
 
 localItem ::=
     localLetDeclaration
+  | localPatternLetDeclaration
   | functionDeclaration
   | offerValueDeclaration
 
@@ -458,7 +472,10 @@ pattern ::=
   | structPattern
 
 qualifiedVariantPattern ::=
-    typeName "::" variantName patternArguments?
+    typeName "::" variantName variantTypeBinders? patternArguments?
+
+variantTypeBinders ::=
+    "[" commaSeparatedTypeBinders "]"
 
 patternArguments ::=
     "(" commaSeparatedPatterns? ")"
@@ -468,6 +485,8 @@ structPattern ::=
 
 structPatternField ::=
     fieldName
+  | typeName
+  | "_"
   | fieldName ":" pattern
 
 binaryOperator ::=
@@ -483,6 +502,9 @@ commaSeparatedTypes ::=
 
 commaSeparatedTypeParameters ::=
     typeParameter ("," typeParameter)* ","?
+
+commaSeparatedTypeBinders ::=
+    typeBinder ("," typeBinder)* ","?
 
 commaSeparatedParameters ::=
     parameter ("," parameter)* ","?
@@ -523,6 +545,9 @@ variantName ::=
 typeParameter ::=
     identifier
 
+typeBinder ::=
+    identifier
+
 space ::=
     whitespace+
 ```
@@ -560,7 +585,9 @@ Comments are trivia. Comments do not appear in the syntactic grammar.
     columns: (auto, 1fr),
     [Notation], [Meaning],
     [$T, U, R, F, P, Q$], [types],
-    [$A$], [type variable],
+    [$A$], [universal type variable],
+    [$B$], [existential type variable],
+    [$K$], [kind],
     [$C$], [type constructor],
     [$S$], [struct type constructor],
     [$E$], [enum type constructor],
@@ -575,27 +602,54 @@ Comments are trivia. Comments do not appear in the syntactic grammar.
     [$#sym.Gamma$], [value typing context],
     [$D$], [custom type definition],
     [$C #sym.arrow.r D #sym.in #sym.Delta$], [visible custom type definition binding],
-    [$op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m)$], [struct definition],
-    [$op("enum")(A_1, ..., A_n; v_j(P_(j,1), ..., P_(j,m_j)))$], [enum definition],
+    [$op("struct")(A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m)$], [struct definition with universal parameters, existential type members, and value fields],
+    [$op("enum")(A_1, ..., A_n; v_j[B_(j,1) : K_(j,1), ..., B_(j,r_j) : K_(j,r_j)](P_(j,1), ..., P_(j,m_j)))$], [enum definition with universal parameters and variant-local existential binders],
     [$op("params")(D) = (A_1, ..., A_n)$], [custom type parameters],
-    [$D #sym.tack.r v : (P_1, ..., P_m)$], [variant payload sequence declared by a custom type definition],
+    [$D #sym.tack.r v : (B_1 : K_1, ..., B_r : K_r; P_1, ..., P_m)$], [variant hidden binders and payload sequence declared by a custom type definition],
     [$D #sym.tack.r op("variants")(v_1, ..., v_q)$], [variant sequence declared by a custom type definition],
-    [$#sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v #sym.arrow.r (Q_1, ..., Q_m)$], [instantiated variant payload sequence],
+    [$#sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v[U_1, ..., U_r] #sym.arrow.r (Q_1, ..., Q_m)$], [instantiated variant payload sequence],
     [$#sym.sigma$], [type substitution environment],
     [$#sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n]$], [substitution environment binding],
+    [$#sym.rho = [U_1 #sym.slash B_1, ..., U_r #sym.slash B_r]$], [existential witness substitution],
     [$U[T_1 #sym.slash A_1, ..., T_n #sym.slash A_n]$], [direct type substitution],
     [$U #sym.sigma$], [type substitution by environment],
     [$#sym.Delta; #sym.Theta #sym.tack.r T " type"$], [well-formed type],
     [$C[T_1, ..., T_n]$], [nominal type application],
     [$#sym.forall A_1, ..., A_n "." T$], [universal type],
+    [$#sym.exists B_1 : K_1, ..., B_r : K_r "." T$], [existential package model],
     [$T #sym.eq.triple U$], [type equality],
     [$#sym.Gamma #sym.tack.r e : T$], [expression typing],
-    [$op("fields")(S[T_1, ..., T_n]) = (l_1 : Q_1, ..., l_m : Q_m)$], [instantiated struct fields],
+    [$op("hidden-free")(T)$], [type that mentions no unopened existential binder],
+    [$op("not-free")(B_1, ..., B_r; T)$], [none of the listed existential binders occurs free in type $T$],
+    [$op("struct-shape")(S[T_1, ..., T_n]) = (B_1 : K_1, ..., B_r : K_r; l_1 : Q_1, ..., l_m : Q_m)$], [instantiated struct type members and value fields],
     [$op("arm-type")(E[T_1, ..., T_n], v, R)$], [typed enum match arm],
     [$frac(P, Q)$], [rule with premise $P$ and conclusion $Q$],
     [$op("name")$], [abstract syntax constructor],
   )
 ]
+
+== Kinds
+
+Lane2 v1 uses `Type` as the kind of ordinary value-level types. Type members carry explicit kinds so that the same surface form can later extend to higher-kinded witnesses.
+
+*Kind formation.*
+
+```lane2
+Type
+Type -> Type
+```
+
+#math-list(
+  $ #sym.Delta; #sym.Theta #sym.tack.r "Type" " kind" $,
+)
+
+#rule[
+  $ #sym.Delta; #sym.Theta #sym.tack.r K_1 " kind" quad #sym.Delta; #sym.Theta #sym.tack.r K_2 " kind" $
+][
+  $ #sym.Delta; #sym.Theta #sym.tack.r K_1 -> K_2 " kind" $
+]
+
+Declarations that use type members must record the written kind. `Type` is the first required kind, and function kinds such as `Type -> Type` are specified so existential type members are higher-kind-ready.
 
 == Primitive Types
 
@@ -786,16 +840,27 @@ Generic function type equality compares the number of type parameters and the fu
 
 Struct and enum declarations introduce nominal custom type definitions in #sym.Delta. This section specifies the shared treatment of nominal type constructors. Struct-specific and enum-specific declaration rules are specified in "Struct Types" and "Enum Types".
 
-Top-level custom type declarations are checked in two phases. First, all top-level struct and enum constructors are collected into #sym.Delta as declaration-shape bindings. Second, every field type and variant payload type is checked under the collected #sym.Delta and the declaration's type parameters. This permits mutually recursive custom types.
+Top-level custom type declarations are checked in two phases. First, all top-level struct and enum constructors are collected into #sym.Delta as declaration-shape bindings. Second, every type member kind, field type, variant-local type binder kind, and variant payload type is checked under the collected #sym.Delta and the declaration's type parameters. This permits mutually recursive custom types.
 
-*Custom type collection.* A top-level custom type declaration contributes its nominal constructor and declaration shape to #sym.Delta before member type checking begins. In enum declaration shapes, #math.inline[$P_j$] denotes the payload type sequence of variant #math.inline[$v_j$].
+*Custom type collection.* A top-level custom type declaration contributes its nominal constructor and declaration shape to #sym.Delta before member type checking begins. In struct declaration shapes, #math.inline[$B_1 : K_1, ..., B_r : K_r$] denotes hidden type members. In enum declaration shapes, #math.inline[$B_(j,1) : K_(j,1), ..., B_(j,r_j) : K_(j,r_j)$] denotes variant-local hidden type binders, and #math.inline[$P_j$] denotes the payload type sequence of variant #math.inline[$v_j$].
 
 ```lane2
-struct S[A1, ..., An] { l1 : F1, ..., lm : Fm }
-enum E[A1, ..., An] { vj(Pj1, ..., Pjmj) }
+struct S[A1, ..., An] {
+  type B1 : K1
+  ...
+  l1 : F1
+  ...
+  lm : Fm
+}
+
+enum E[A1, ..., An] {
+  vj[Bj1, ..., Bjrj](Pj1, ..., Pjmj)
+}
 ```
 
-$ S #sym.arrow.r op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta quad E #sym.arrow.r op("enum")(A_1, ..., A_n; v_1(P_1), ..., v_q(P_q)) #sym.in #sym.Delta $
+$ S #sym.arrow.r op("struct")(A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta $
+
+$ E #sym.arrow.r op("enum")(A_1, ..., A_n; v_1[B_(1,1) : K_(1,1), ..., B_(1,r_1) : K_(1,r_1)](P_1), ..., v_q[B_(q,1) : K_(q,1), ..., B_(q,r_q) : K_(q,r_q)](P_q)) #sym.in #sym.Delta $
 
 *Nominal formation.* A nominal type application is well-formed when its custom type constructor is visible, the number of type arguments matches the declaration's type parameters, and every type argument is well-formed.
 
@@ -813,12 +878,58 @@ $ S #sym.arrow.r op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) #sym.in 
   $ C[T_1, ..., T_n] #sym.eq.triple C[U_1, ..., U_n] $
 ]
 
+Existential type members and variant-local binders are not arguments of the nominal type constructor. They do not participate in nominal type equality; their witnesses are hidden inside constructed values and can be opened only by pattern-based elimination.
+
+== Existential Packages
+
+Lane2 surface structs and enum variants with hidden type binders are modeled by existential packages. The existential type form is a static model used by the specification; Lane2 source does not provide a general `exists` type syntax.
+
+*Existential formation.*
+
+#rule[
+  $ #sym.Delta; #sym.Theta, B_1 : K_1, ..., B_r : K_r #sym.tack.r T " type" $
+][
+  $ #sym.Delta; #sym.Theta #sym.tack.r #sym.exists B_1 : K_1, ..., B_r : K_r "." T " type" $
+]
+
+*Existential introduction.*
+
+```lane2
+Hide::{ T = Int, val: 5 } // struct package
+Hide::hide[Int](5)        // enum variant package
+```
+
+#rule[
+  $ #sym.Delta; #sym.Theta #sym.tack.r U_1 : K_1 quad ... quad #sym.Delta; #sym.Theta #sym.tack.r U_r : K_r quad #sym.rho = [U_1 #sym.slash B_1, ..., U_r #sym.slash B_r] quad #sym.Gamma #sym.tack.r v : T #sym.rho $
+][
+  $ #sym.Gamma #sym.tack.r op("pack")([U_1, ..., U_r], v) : #sym.exists B_1 : K_1, ..., B_r : K_r "." T $
+]
+
+*Existential elimination.*
+
+```lane2
+let Hide::{ T, val } = h
+match h {
+  Hide::hide[T](val) => body
+}
+```
+
+#rule[
+  $ #sym.Gamma #sym.tack.r e : #sym.exists B : K "." T quad #sym.Gamma, B : K, x : T #sym.tack.r b : R quad op("not-free")(B; R) $
+][
+  $ #sym.Gamma #sym.tack.r op("unpack")(e; B, x => b) : R $
+]
+
+The side condition prevents an opened hidden type from escaping the scope that opened it. A value whose type mentions an opened hidden type must be repacked into another existential before leaving that scope.
+
 == Struct Types
 
-*Struct declaration well-formedness.* A struct declaration is well-formed when every declared field type is well-formed under the collected type-constructor context and the struct's type parameters.
+*Struct declaration well-formedness.* A struct declaration is well-formed when every declared type member kind is well-formed and every declared field type is well-formed under the collected type-constructor context, the struct's universal type parameters, and the struct's hidden type members. Type members must appear before value fields in source.
 
 ```lane2
 struct S[A1, ..., An] {
+  type B1 : K1
+  ...
   l1 : F1
   ...
   lm : Fm
@@ -827,110 +938,140 @@ struct S[A1, ..., An] {
 
 $ frac(
   display(cases(
-    #[$ S #sym.arrow.r op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta $],
-    #[$ #sym.forall i "." #sym.Delta; A_1, ..., A_n #sym.tack.r F_i " type" $],
+    #[$ S #sym.arrow.r op("struct")(A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta $],
+    #[$ #sym.forall p "." #sym.Delta; A_1, ..., A_n #sym.tack.r K_p " kind" $],
+    #[$ #sym.forall i "." #sym.Delta; A_1, ..., A_n, B_1 : K_1, ..., B_r : K_r #sym.tack.r F_i " type" $],
   )),
-  #sym.Delta #sym.tack.r op("struct-decl")(S; A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) " declaration",
+  #sym.Delta #sym.tack.r op("struct-decl")(S; A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m) " declaration",
 ) $
 
-*Struct introduction.* A qualified struct literal introduces a struct value. It must provide every declared field exactly once. Source field order is not significant; the rule below uses declaration order.
+*Struct introduction.* A qualified struct literal introduces a struct value. It must provide every declared type-member witness and every declared value field exactly once. Source order is not significant for named witnesses and fields; the rule below uses declaration order.
 
 ```lane2
 S[T1, ..., Tn]::{ l1: e1, ..., lm: em } // qualified struct literal
+Hide::{ B1 = U1, val: e } // qualified struct literal with hidden type witness
 ```
 
 #rule[
-  $ S #sym.arrow.r op("struct")(A_1, ..., A_n; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta quad #sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n] $
+  $ S #sym.arrow.r op("struct")(A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta quad #sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n] $
 ][
-  $ op("fields")(S[T_1, ..., T_n]) = (l_1 : F_1 #sym.sigma, ..., l_m : F_m #sym.sigma) $
+  $ op("struct-shape")(S[T_1, ..., T_n]) = (B_1 : K_1 #sym.sigma, ..., B_r : K_r #sym.sigma; l_1 : F_1 #sym.sigma, ..., l_m : F_m #sym.sigma) $
 ]
 
-#rule[
-  $ op("fields")(S[T_1, ..., T_n]) = (l_1 : Q_1, ..., l_m : Q_m) quad #sym.Gamma #sym.tack.r e_1 : Q_1 quad ... quad #sym.Gamma #sym.tack.r e_m : Q_m $
-][
-  $ #sym.Gamma #sym.tack.r op("struct-lit")(S[T_1, ..., T_n], l_1 = e_1, ..., l_m = e_m) : S[T_1, ..., T_n] $
-]
+$ frac(
+  display(cases(
+    #[$ op("struct-shape")(S[T_1, ..., T_n]) = (B_1 : K_1, ..., B_r : K_r; l_1 : Q_1, ..., l_m : Q_m) $],
+    #[$ #sym.forall p "." #sym.Delta; #sym.Theta #sym.tack.r U_p : K_p $],
+    #[$ #sym.rho = [U_1 #sym.slash B_1, ..., U_r #sym.slash B_r] $],
+    #[$ #sym.forall i "." #sym.Gamma #sym.tack.r e_i : Q_i #sym.rho $],
+  )),
+  #sym.Gamma #sym.tack.r op("struct-lit")(S[T_1, ..., T_n], B_1 = U_1, ..., B_r = U_r, l_1 = e_1, ..., l_m = e_m) : S[T_1, ..., T_n],
+) $
 
-*Struct field elimination.* Field access eliminates a struct value by selecting a declared field type after substituting the struct type arguments.
+*Struct field elimination.* Field access eliminates a struct value by selecting a declared field type after substituting the struct type arguments. Field access alone does not open hidden type members. Therefore the selected field type must not mention unopened hidden type members.
 
 ```lane2
 e.l // field access
 ```
 
 #rule[
-  $ #sym.Gamma #sym.tack.r e : S[T_1, ..., T_n] quad op("fields")(S[T_1, ..., T_n]) = (..., l : Q, ...) $
+  $ #sym.Gamma #sym.tack.r e : S[T_1, ..., T_n] quad op("struct-shape")(S[T_1, ..., T_n]) = (B_1 : K_1, ..., B_r : K_r; ..., l : Q, ...) quad op("hidden-free")(Q) $
 ][
   $ #sym.Gamma #sym.tack.r e.l : Q $
 ]
 
-Struct values are also eliminated by struct patterns and may carry contextual forwarding fields; their detailed static rules are specified in "Pattern Matching" and "Structs and Enums".
+*Struct pattern elimination.* A struct pattern may open hidden type members and bind value fields. The opened type binders are abstract and are available only in the scope governed by the pattern.
+
+```lane2
+let S::{ B1, ..., Br, l1: x1, ..., lm: xm } = e
+```
+
+$ frac(
+  display(cases(
+    #[$ #sym.Gamma #sym.tack.r e : S[T_1, ..., T_n] $],
+    #[$ op("struct-shape")(S[T_1, ..., T_n]) = (B_1 : K_1, ..., B_r : K_r; l_1 : Q_1, ..., l_m : Q_m) $],
+    #[$ #sym.Gamma, B_1 : K_1, ..., B_r : K_r, x_1 : Q_1, ..., x_m : Q_m #sym.tack.r b : R $],
+    #[$ op("not-free")(B_1, ..., B_r; R) $],
+  )),
+  #sym.Gamma #sym.tack.r op("struct-unpack")(e; B_1, ..., B_r; x_1, ..., x_m => b) : R,
+) $
+
+Struct pattern syntax and contextual forwarding fields are specified in "Pattern Matching" and "Structs and Enums".
 
 == Enum Types
 
-*Enum declaration well-formedness.* An enum declaration is well-formed when every declared variant payload type is well-formed under the collected type-constructor context and the enum's type parameters.
+*Enum declaration well-formedness.* An enum declaration is well-formed when every variant-local type binder kind is well-formed and every declared variant payload type is well-formed under the collected type-constructor context, the enum's type parameters, and the variant-local hidden type binders.
 
 ```lane2
 enum E[A1, ..., An] {
-  v1(P11, ..., P1m1)
+  v1[B11, ..., B1r1](P11, ..., P1m1)
   ...
-  vj(Pj1, ..., Pjmj)
+  vj[Bj1, ..., Bjrj](Pj1, ..., Pjmj)
 } // enum definition
 ```
 
 $ frac(
   display(cases(
-    #[$ E #sym.arrow.r op("enum")(A_1, ..., A_n; v_1(P_1), ..., v_q(P_q)) #sym.in #sym.Delta $],
-    #[$ #sym.forall j,k "." #sym.Delta; A_1, ..., A_n #sym.tack.r P_(j,k) " type" $],
+    #[$ E #sym.arrow.r op("enum")(A_1, ..., A_n; v_j[B_(j,1) : K_(j,1), ..., B_(j,r_j) : K_(j,r_j)](P_(j,1), ..., P_(j,m_j))) #sym.in #sym.Delta $],
+    #[$ #sym.forall j,p "." #sym.Delta; A_1, ..., A_n #sym.tack.r K_(j,p) " kind" $],
+    #[$ #sym.forall j,k "." #sym.Delta; A_1, ..., A_n, B_(j,1) : K_(j,1), ..., B_(j,r_j) : K_(j,r_j) #sym.tack.r P_(j,k) " type" $],
   )),
-  #sym.Delta #sym.tack.r op("enum-decl")(E; A_1, ..., A_n; v_1(P_1), ..., v_q(P_q)) " declaration",
+  #sym.Delta #sym.tack.r op("enum-decl")(E; A_1, ..., A_n; v_j[B_(j,1) : K_(j,1), ..., B_(j,r_j) : K_(j,r_j)](P_j)) " declaration",
 ) $
 
 *Variant constructor introduction.* Each declared variant constructor is an introduction form for values of its owning enum type. A variant constructor does not introduce a separate variant type. The payload expressions must match the declared variant payload types after substituting the enum type arguments.
 
 ```lane2
 E[T1, ..., Tn]::v(e1, ..., em) // qualified variant constructor call
+E[T1, ..., Tn]::v[U1, ..., Ur](e1, ..., em) // constructor call with hidden witnesses
 v(e1, ..., em) // unqualified constructor call after unambiguous resolution
 ```
 
-For an enum declaration shape #math.inline[$D$], #math.inline[$D #sym.tack.r v : (P_1, ..., P_m)$] states that #math.inline[$D$] declares variant #math.inline[$v$] with payload type sequence #math.inline[$(P_1, ..., P_m)$].
+For an enum declaration shape #math.inline[$D$], #math.inline[$D #sym.tack.r v : (B_1 : K_1, ..., B_r : K_r; P_1, ..., P_m)$] states that #math.inline[$D$] declares variant #math.inline[$v$] with hidden type binders and payload type sequence #math.inline[$(P_1, ..., P_m)$].
 
-The judgment #math.inline[$#sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v #sym.arrow.r (Q_1, ..., Q_m)$] instantiates that payload sequence at the enum type arguments.
+The judgment #math.inline[$#sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v [U_1, ..., U_r] #sym.arrow.r (Q_1, ..., Q_m)$] instantiates that payload sequence at the enum type arguments and the chosen hidden witnesses.
 
 $ frac(
   display(cases(
     #[$ E #sym.arrow.r D #sym.in #sym.Delta $],
-    #[$ D #sym.tack.r v : (P_1, ..., P_m) $],
+    #[$ D #sym.tack.r v : (B_1 : K_1, ..., B_r : K_r; P_1, ..., P_m) $],
     #[$ op("params")(D) = (A_1, ..., A_n) $],
     #[$ #sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n] $],
     #[$ #sym.forall i "." #sym.Delta; #sym.Theta #sym.tack.r T_i " type" $],
+    #[$ #sym.forall p "." #sym.Delta; #sym.Theta #sym.tack.r U_p : K_p #sym.sigma $],
+    #[$ #sym.rho = [U_1 #sym.slash B_1, ..., U_r #sym.slash B_r] $],
   )),
-  #sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v #sym.arrow.r (P_1 #sym.sigma, ..., P_m #sym.sigma),
+  #sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v[U_1, ..., U_r] #sym.arrow.r (P_1 #sym.sigma #sym.rho, ..., P_m #sym.sigma #sym.rho),
 ) $
 
 $ frac(
   display(cases(
-    #[$ #sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v #sym.arrow.r (Q_1, ..., Q_m) $],
+    #[$ #sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v[U_1, ..., U_r] #sym.arrow.r (Q_1, ..., Q_m) $],
     #[$ #sym.forall k "." #sym.Gamma #sym.tack.r e_k : Q_k $],
   )),
-  #sym.Gamma #sym.tack.r op("variant")(E[T_1, ..., T_n], v, e_1, ..., e_m) : E[T_1, ..., T_n],
+  #sym.Gamma #sym.tack.r op("variant")(E[T_1, ..., T_n], v, [U_1, ..., U_r], e_1, ..., e_m) : E[T_1, ..., T_n],
 ) $
 
-An unqualified enum variant expression is typed by the same rule after name resolution has selected exactly one visible enum variant.
+An unqualified enum variant expression is typed by the same rule after name resolution has selected exactly one visible enum variant. Variant-local hidden witnesses may be written explicitly after the variant name or selected by local type inference when there is exactly one solution.
 
 *Enum match elimination.* A match expression eliminates an enum value. For an enum scrutinee type, every declared variant must be covered.
 
 ```lane2
 match e {
-  E::v1(x11, ..., x1m1) => b1
+  E::v1[B11, ..., B1r1](x11, ..., x1m1) => b1
   ...
-  E::vq(xq1, ..., xqmq) => bq
+  E::vq[Bq1, ..., Bqrq](xq1, ..., xqmq) => bq
 }
 ```
 
 $ frac(
   display(cases(
-    #[$ #sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v #sym.arrow.r (Q_1, ..., Q_m) $],
-    #[$ #sym.Gamma, x_1 : Q_1, ..., x_m : Q_m #sym.tack.r b : R $],
+    #[$ E #sym.arrow.r D #sym.in #sym.Delta $],
+    #[$ op("params")(D) = (A_1, ..., A_n) $],
+    #[$ D #sym.tack.r v : (B_1 : K_1, ..., B_r : K_r; P_1, ..., P_m) $],
+    #[$ #sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n] $],
+    #[$ #sym.Gamma, B_1 : K_1 #sym.sigma, ..., B_r : K_r #sym.sigma, x_1 : P_1 #sym.sigma, ..., x_m : P_m #sym.sigma #sym.tack.r b : R $],
+    #[$ op("not-free")(B_1, ..., B_r; R) $],
   )),
   #sym.Gamma #sym.tack.r op("arm")(v(x_1, ..., x_m) => b) : op("arm-type")(E[T_1, ..., T_n], v, R),
 ) $
@@ -1149,6 +1290,7 @@ Offered value definitions must be named. They are not forward-visible and do not
     [$C$], [type name],
     [$S$], [struct type constructor],
     [$E$], [enum type constructor],
+    [$B$], [existential type binder],
     [$l$], [struct field name],
     [$v$], [enum variant name],
     [$A$], [contextual parameter target type],
@@ -1288,6 +1430,21 @@ Local `let`, local named `fn`, and local offered value definitions are sequentia
   $ R_i ";" K_i #sym.tack.r e_i #sym.arrow.r e_i' quad R_(i+1) = R_i, x_i #sym.arrow.r s_i $
 ][
   $ R_i #sym.tack.r op("local-let")(x_i, e_i) #sym.arrow.r R_(i+1) $
+]
+
+A local pattern `let` is sequential and may introduce both value binders and type binders. It is the source form used to open existential structs over the remainder of the block.
+
+```lane2
+{
+  let Hide::{ T, val } = h
+  body
+}
+```
+
+#rule[
+  $ R_i ";" K_i #sym.tack.r e_i #sym.arrow.r e_i' quad op("pattern-binders")(p, e_i') = (B_1, ..., B_r; x_1 #sym.arrow.r s_1, ..., x_m #sym.arrow.r s_m) quad R_(i+1) = R_i, B_1, ..., B_r, x_1 #sym.arrow.r s_1, ..., x_m #sym.arrow.r s_m $
+][
+  $ R_i #sym.tack.r op("local-pattern-let")(p, e_i) #sym.arrow.r R_(i+1) $
 ]
 
 #rule[
@@ -1586,6 +1743,35 @@ let p : Point = Point::{ x: x, y: y }
 
 Struct literals must provide every field exactly once.
 
+Structs may declare hidden type members before value fields:
+
+```lane2
+struct Hide {
+  type T : Type
+  val : T
+}
+```
+
+Hidden type members are not ordinary value fields and are not accessed with dot syntax. Construction supplies type-member witnesses with `=` and value fields with `:`:
+
+```lane2
+let h : Hide = Hide::{ T = Int, val: 5 }
+```
+
+Consumers do not see the chosen witness type until a struct pattern opens it:
+
+```lane2
+let Hide::{ T, val } = h
+```
+
+After this local item, `T : Type` and `val : T` are available for the remaining local scope. The opened type `T` must not escape that scope unless it is packed again into an existential value.
+
+Type members may be ignored with `_` in the type-member position of a struct pattern:
+
+```lane2
+let Hide::{ _, val } = h
+```
+
 The following are not supported:
 
 - anonymous record literals,
@@ -1601,6 +1787,8 @@ p.x
 ```
 
 V1 has no field visibility modifiers. Every struct field is accessible wherever the struct value is accessible.
+
+If a field type mentions an unopened hidden type member, field access is invalid until a struct pattern has opened that hidden type.
 
 == Enums
 
@@ -1628,6 +1816,22 @@ enum Expr {
   add(Expr, Expr)
 }
 ```
+
+An enum variant may declare hidden type binders that are chosen at construction and opened by matching the variant pattern:
+
+```lane2
+enum Hide {
+  hide[T](T)
+}
+
+let h : Hide = Hide::hide[Int](5)
+
+match h {
+  Hide::hide[T](val) => body
+}
+```
+
+Inside the arm, `T : Type` and `val : T` are available. The opened type `T` is abstract and must not escape the arm result type unless it is packed again into an existential value.
 
 Labeled variant payloads are not part of v1. Named product data must be represented with a struct:
 
@@ -1702,7 +1906,7 @@ V1 patterns:
 - wildcard pattern: `_`,
 - variable binding pattern: `name`,
 - literal pattern,
-- qualified enum variant pattern,
+- qualified enum variant pattern, optionally with hidden type binders,
 - qualified struct pattern.
 
 Enum variants in patterns must be qualified:
@@ -1710,7 +1914,10 @@ Enum variants in patterns must be qualified:
 ```lane2
 Option::some(x)
 Option::none
+Hide::hide[T](val)
 ```
+
+When a variant declares hidden type binders, the variant pattern opens fresh abstract type binders for the arm body. The arm result type must not mention those binders.
 
 Bare identifiers in patterns are always variable bindings:
 
@@ -1735,6 +1942,15 @@ match p {
   Point::{ x: a, y: b } => a + b
 }
 ```
+
+Struct patterns for structs with type members list type-member binders before value fields. A type-member binder introduces an abstract type for the remaining local scope or match arm. `_` ignores one type member and does not introduce a usable type name.
+
+```lane2
+let Hide::{ T, val } = h
+let Hide::{ _, val } = h
+```
+
+Hidden type binders opened by enum or struct patterns are scoped to the pattern body. They must not occur free in the type of the body result unless the value is repacked into another existential before leaving that body.
 
 Rest patterns, spread patterns, guards, or-patterns, as-patterns, and `is` pattern expressions are not supported in v1.
 
