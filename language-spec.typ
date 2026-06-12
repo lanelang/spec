@@ -47,7 +47,7 @@
 
 Lane2 is a strict, pure, expression-oriented functional programming language. Its first implementation target is a parser, a type checker, and an AST interpreter; later implementations may add bytecode compilation, a virtual machine, a linker, and effect handling.
 
-Lane2 is intentionally small. It has no mutable state, assignment, trait system, method dispatch, module system, or implicit typeclass-style instance search in v1. Instead, v1 is centered on nominal data, first-class functions, bidirectional local type inference, exhaustive pattern matching, and explicit operation values opened into lexical scope.
+Lane2 is intentionally small. It has no mutable state, assignment, trait system, method dispatch, module system, or implicit typeclass-style instance search in v1. Instead, v1 is centered on nominal data, first-class functions, bidirectional local type inference, exhaustive pattern matching, and contextual resolution of explicitly offered values.
 
 This document specifies Lane2/Core v1: the platform-independent part of Lane2 that should behave the same across the initial AST interpreter and later execution backends.
 
@@ -61,7 +61,7 @@ Lane2/Core v1 covers:
 - function and block expressions;
 - local type inference;
 - pattern matching;
-- `open`, `preopen`, and operation-based operators;
+- contextual resolution and operation-based operators;
 - unsafe builtin expressions.
 
 The following are outside Lane2/Core v1:
@@ -156,7 +156,8 @@ keyword ::=
   | "enum"
   | "fn"
   | "let"
-  | "open"
+  | "auto"
+  | "offer"
   | "if"
   | "else"
   | "match"
@@ -291,21 +292,20 @@ topLevelDeclaration ::=
   | enumDeclaration
   | functionDeclaration
   | topLevelLetDeclaration
-  | topLevelOpenLetDeclaration
-  | openDeclaration
+  | topLevelOfferedLetDeclaration
+  | offerDeclaration
 
 structDeclaration ::=
     "struct" typeName typeParameters? "{" structMember* "}"
 
 structMember ::=
-    fieldDeclaration
-  | fieldForwardingDeclaration
+    structFieldDeclaration
 
-fieldDeclaration ::=
-    fieldName space ":" space type
+structFieldDeclaration ::=
+    fieldModifier? fieldName space ":" space type
 
-fieldForwardingDeclaration ::=
-    "open" valueName
+fieldModifier ::=
+    "offer"
 
 enumDeclaration ::=
     "enum" typeName typeParameters? "{" enumVariant* "}"
@@ -320,25 +320,32 @@ functionDeclaration ::=
     "fn" typeParameters? functionName "(" commaSeparatedParameters? ")" "->" type block
 
 parameter ::=
-    valueName space ":" space type
+    parameterModifiers? valueName space ":" space type
+
+parameterModifiers ::=
+    parameterModifier+
+
+parameterModifier ::=
+    "auto"
+  | "offer"
 
 topLevelLetDeclaration ::=
     "let" valueName space ":" space type "=" expression
 
-topLevelOpenLetDeclaration ::=
-    "let" "open" valueName space ":" space type "=" expression
+topLevelOfferedLetDeclaration ::=
+    "let" "offer" valueName space ":" space type "=" expression
 
 localLetDeclaration ::=
     "let" valueName typeAnnotation? "=" expression
 
-localOpenLetDeclaration ::=
-    "let" "open" valueName typeAnnotation? "=" expression
+localOfferedLetDeclaration ::=
+    "let" "offer" valueName typeAnnotation? "=" expression
 
 typeAnnotation ::=
     space ":" space type
 
-openDeclaration ::=
-    "open" valueName
+offerDeclaration ::=
+    "offer" valueName
 
 type ::=
     typeConstructor typeArguments?
@@ -381,7 +388,11 @@ callExpression ::=
     fieldExpression { callSuffix }
 
 callSuffix ::=
-    "(" commaSeparatedExpressions? ")"
+    "(" commaSeparatedCallArguments? ")"
+
+callArgument ::=
+    expression
+  | valueName "=" expression
 
 fieldExpression ::=
     primaryExpression { "." fieldName }
@@ -389,15 +400,11 @@ fieldExpression ::=
 primaryExpression ::=
     literal
   | valueName
-  | plainValueReference
   | qualifiedVariantExpression
   | structLiteral
   | builtinExpression
   | "(" expression ")"
   | "(" ")"
-
-plainValueReference ::=
-    "." valueName
 
 literal ::=
     intLiteral
@@ -424,8 +431,11 @@ functionLiteral ::=
     "fn" typeParameters? "(" commaSeparatedFunctionLiteralParameters? ")" functionReturnAnnotation? block
 
 functionLiteralParameter ::=
-    valueName
-  | valueName space ":" space type
+    functionLiteralParameterModifiers? valueName
+  | functionLiteralParameterModifiers? valueName space ":" space type
+
+functionLiteralParameterModifiers ::=
+    "offer"+
 
 functionReturnAnnotation ::=
     "->" type
@@ -435,9 +445,9 @@ block ::=
 
 localItem ::=
     localLetDeclaration
-  | localOpenLetDeclaration
+  | localOfferedLetDeclaration
   | functionDeclaration
-  | openDeclaration
+  | offerDeclaration
 
 ifExpression ::=
     "if" expression block "else" block
@@ -487,6 +497,9 @@ commaSeparatedParameters ::=
 
 commaSeparatedExpressions ::=
     expression ("," expression)* ","?
+
+commaSeparatedCallArguments ::=
+    callArgument ("," callArgument)* ","?
 
 commaSeparatedFunctionLiteralParameters ::=
     functionLiteralParameter ("," functionLiteralParameter)* ","?
@@ -858,7 +871,7 @@ e.l // field access
   $ #sym.Gamma #sym.tack.r e.l : Q $
 ]
 
-Struct values are also eliminated by struct patterns and exposed by `open`; their detailed static rules are specified in "Pattern Matching" and "Structs, Enums, and Open".
+Struct values are also eliminated by struct patterns and may carry contextual forwarding fields; their detailed static rules are specified in "Pattern Matching" and "Structs and Enums".
 
 == Enum Types
 
@@ -1002,15 +1015,15 @@ A conforming Lane2/Core v1 implementation provides these portable intrinsic name
 
 Other intrinsic names are implementation-defined unsafe builtins.
 
-`%bool_and`, `%bool_or`, `%bool_not`, and `%bool_equal` are not required intrinsics. The standard prelude defines boolean operations as ordinary Lane2 functions and open bindings using `if`; `&&` and `||` supply their right operands as thunks.
+`%bool_and`, `%bool_or`, `%bool_not`, and `%bool_equal` are not required intrinsics. The standard prelude defines boolean operations as ordinary Lane2 functions and offered operation values using `if`; `&&` and `||` supply their right operands as thunks.
 
 = Prelude
 
 The standard prelude is implementation-supplied Lane2 source checked before user code. It is not a module system.
 
-Prelude declarations provide standard operation structs, primitive wrappers around required intrinsics, derived primitive operations written in Lane2, and prelude-provided open bindings that populate the initial preopen namespace.
+Prelude declarations provide standard operation structs, primitive wrappers around required intrinsics, derived primitive operations written in Lane2, and prelude-provided contextual offers.
 
-Prelude entries are ordinary Lane2 values and types. Operation structs are API conventions that group ordinary operation names.
+Prelude entries are ordinary Lane2 values and types. Operation structs are API conventions that group short operation fields such as `add`, `equal`, and `less`.
 
 Operation laws are API conventions, not compiler-checked rules.
 
@@ -1024,21 +1037,21 @@ Boolean conjunction, disjunction, negation, and equality do not require boolean 
 
 = Declarations
 
-Declarations introduce types, functions, values, and open scope extensions.
+Declarations introduce types, functions, values, and contextual offers.
 
 == Top-Level Declarations
 
 Top-level declarations are described by the `topLevelDefinition` grammar in "Syntax and Grammar".
 
-Top-level forms include struct declarations, enum declarations, named function declarations, typed value declarations, open bindings, and open declarations.
+Top-level forms include struct declarations, enum declarations, named function declarations, typed value declarations, offered value definitions, and offer declarations.
 
 == Struct Declarations
 
-Struct declarations use the grammar in "Structs, Enums, and Open".
+Struct declarations use the grammar in "Structs and Enums".
 
 == Enum Declarations
 
-Enum declarations use the grammar in "Structs, Enums, and Open".
+Enum declarations use the grammar in "Structs and Enums".
 
 == Function Declarations
 
@@ -1068,6 +1081,24 @@ fn[A] id(value : A) -> A {
 
 Function parameters are positional in v1. Labeled function parameters are not supported.
 
+Named function definitions may mark a trailing suffix of parameters with `auto`. These contextual parameters remain ordinary parameters in the function type, but a direct named call may omit them and let Contextual Resolution supply them.
+
+```lane2
+fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T {
+  op.add(a, b)
+}
+```
+
+Contextual parameters must appear as a contiguous suffix of the parameter list. Function literals cannot declare `auto` parameters.
+
+A parameter may be marked `offer`; it is then added to the function body's contextual offer environment. The `offer` modifier does not affect the function type or call syntax. Function literals may use `offer` parameters.
+
+```lane2
+fn[T] twice(x : T, auto offer add : Add[T]) -> T {
+  op_add(x, x)
+}
+```
+
 Function literals produce function values:
 
 ```lane2
@@ -1090,24 +1121,24 @@ Named top-level `let` declarations must include type annotations.
 
 Local `let` declarations may omit type annotations when their initializer can synthesize a type by local type inference.
 
-An open binding has the form `let open name ... = expression`. It is syntax sugar for a value declaration immediately followed by `open name`.
+An offered value definition has the form `let offer name ... = expression`. It is syntax sugar for a value declaration immediately followed by `offer name`.
 
-Top-level open bindings must include type annotations because all top-level value declarations must include type annotations:
+Top-level offered value definitions must include type annotations because all top-level value declarations must include type annotations:
 
 ```lane2
-let open int_ops : Add[Int] = Add::{ op_add: int_add }
+let offer int_add_ops : Add[Int] = Add::{ add: int_add }
 ```
 
-Local open bindings may omit type annotations when their initializer can synthesize a unique struct type:
+Local offered value definitions may omit type annotations when their initializer can synthesize a type:
 
 ```lane2
 {
-  let open ops = Add::{ op_add: int_add }
+  let offer ops = Add::{ add: int_add }
   1 + 2
 }
 ```
 
-Open bindings are not forward-visible and are not recursively open.
+Offered value definitions must be named. They are not forward-visible and do not make the defined value available as an offer inside its own initializer.
 
 = Scopes and Bindings
 
@@ -1120,8 +1151,7 @@ Open bindings are not forward-visible and are not recursively open.
     [$R$], [resolution environment],
     [$#sym.Delta$], [type-name namespace],
     [$#sym.Gamma$], [ordinary value-binding scope stack],
-    [$#sym.Omega$], [open-exposure scope stack],
-    [$#sym.Pi$], [preopen exposure layer],
+    [$#sym.Omega$], [contextual offer scope stack],
     [$s_T, s_V, s_F, s_R$], [type, value, field, and variant symbols],
     [$x$], [ordinary value name],
     [$C$], [type name],
@@ -1129,27 +1159,24 @@ Open bindings are not forward-visible and are not recursively open.
     [$E$], [enum type constructor],
     [$l$], [struct field name],
     [$v$], [enum variant name],
-    [$K$], [direct local typing constraint],
-    [$P$], [plain value candidate],
-    [$O$], [open-exposure candidate set],
-    [$Q$], [combined value candidate set],
-    [$R = (#sym.Delta, #sym.Gamma, #sym.Omega, #sym.Pi)$], [resolution environment components],
+    [$A$], [contextual parameter target type],
+    [$R = (#sym.Delta, #sym.Gamma, #sym.Omega)$], [resolution environment components],
     [$#sym.Delta #sym.tack.r C #sym.arrow.r s_T$], [type-name resolution],
-    [$#sym.Gamma #sym.tack.r x #sym.arrow.r P$], [ordinary value resolution],
-    [$#sym.Omega ";" #sym.Pi #sym.tack.r x #sym.arrow.r O$], [open and preopen resolution],
+    [$#sym.Gamma #sym.tack.r x #sym.arrow.r s_V$], [ordinary value resolution],
+    [$#sym.Omega #sym.tack.r A #sym.arrow.r s_V$], [contextual resolution by type],
     [$R #sym.tack.r d #sym.arrow.r R'$], [declaration resolution],
-    [$R ";" K #sym.tack.r e #sym.arrow.r s$], [expression-name resolution under a local typing constraint],
-    [$op("select")(Q, K) = s_V$], [candidate selection by direct local typing],
-    [$op("fields")(s_V) = (l_1 : s_(F,1), ..., l_n : s_(F,n))$], [fields exposed by opening a struct value],
+    [$R #sym.tack.r e #sym.arrow.r e'$], [expression-name resolution],
+    [$op("type-of")(s_V) = A$], [known type of a value symbol],
+    [$op("forward")(s_V)$], [contextual offers forwarded from a struct value],
     [$op("variant")(s_T, v) = s_R$], [variant owned by an enum type symbol],
   )
 ]
 
 == Resolution Model
 
-Name resolution maps source names to symbols or candidate sets before typed core is produced. It does not evaluate expressions. When an unqualified value reference denotes multiple candidates, local type checking may select exactly one candidate using direct local typing information; otherwise the reference is ambiguous.
+Name resolution maps source names to symbols before typed core is produced. It does not evaluate expressions. Contextual Resolution is a later type-directed step that supplies omitted contextual arguments from visible offers after ordinary call inference has determined the target contextual parameter types.
 
-The resolution environment has separate namespaces for type names and value names. Field and variant symbols are owned by nominal type symbols and are not global value bindings.
+The resolution environment has separate namespaces for type names, value names, and contextual offers. Field and variant symbols are owned by nominal type symbols and are not global value bindings.
 
 ```lane2
 // source names
@@ -1160,9 +1187,10 @@ TypeName::variant_name
 ```
 
 #math-list(
-  $ R = (#sym.Delta, #sym.Gamma, #sym.Omega, #sym.Pi) $,
+  $ R = (#sym.Delta, #sym.Gamma, #sym.Omega) $,
   $ #sym.Delta #sym.tack.r C #sym.arrow.r s_T $,
-  $ R ";" K #sym.tack.r x #sym.arrow.r s_V $,
+  $ #sym.Gamma #sym.tack.r x #sym.arrow.r s_V $,
+  $ #sym.Omega #sym.tack.r A #sym.arrow.r s_V $,
 )
 
 == Namespaces
@@ -1194,6 +1222,8 @@ let Option : Int = 42
   $ #sym.Gamma #sym.tack.r x #sym.arrow.r s_V $
 ]
 
+Ordinary value lookup never searches the contextual offer environment.
+
 Qualified type-member syntax resolves its left-hand side in the type namespace.
 
 ```lane2
@@ -1222,12 +1252,12 @@ fn f(x : T) -> T { x }
   $ op("top-recursive")(d_1, ..., d_n) = (#sym.Delta, #sym.Gamma) $
 ]
 
-Top-level value definitions and top-level `open` declarations are resolved in source order. A top-level `let` initializer may refer only to values available at that declaration point. A top-level function body is resolved after the complete top-level function and value environment is known.
+Top-level value definitions and top-level `offer` declarations are resolved in source order. A top-level `let` initializer may refer only to values and contextual offers available at that declaration point. A top-level function body is resolved after the complete top-level function, value, and contextual offer environments are known.
 
 ```lane2
 let x : Int = earlier
-open x_ops
-let open y_ops : Add[Int] = Add::{ op_add: int_add }
+offer int_add_ops
+let offer y_ops : Add[Int] = Add::{ add: int_add }
 ```
 
 #rule[
@@ -1237,32 +1267,34 @@ let open y_ops : Add[Int] = Add::{ op_add: int_add }
 ]
 
 #rule[
-  $ R_i ";" K #sym.tack.r op("plain-ref")(x) #sym.arrow.r s_V quad R_(i+1) = R_i, op("open-fields")(s_V) $
+  $ #sym.Gamma _i #sym.tack.r x #sym.arrow.r s_V quad R_(i+1) = R_i, op("offer")(s_V) $
 ][
-  $ R_i #sym.tack.r op("open")(x) #sym.arrow.r R_(i+1) $
+  $ R_i #sym.tack.r op("offer-decl")(x) #sym.arrow.r R_(i+1) $
 ]
 
-An open binding first binds the value, then opens that value from the declaration point forward.
+An offered value definition first binds the value, then offers that value from the declaration point forward.
 
 ```lane2
-let open ops : Add[Int] = Add::{ op_add: int_add }
+let offer ops : Add[Int] = Add::{ add: int_add }
 ```
 
 #rule[
-  $ R_i #sym.tack.r op("top-let")(x, T, e) #sym.arrow.r R_j quad R_j ";" K #sym.tack.r op("plain-ref")(x) #sym.arrow.r s_V quad R_(j+1) = R_j, op("open-fields")(s_V) $
+  $ R_i #sym.tack.r op("top-let")(x, T, e) #sym.arrow.r R_j quad R_j #sym.tack.r op("offer-decl")(x) #sym.arrow.r R_(j+1) $
 ][
-  $ R_i #sym.tack.r op("top-let-open")(x, T, e) #sym.arrow.r R_(j+1) $
+  $ R_i #sym.tack.r op("top-let-offer")(x, T, e) #sym.arrow.r R_(j+1) $
 ]
+
+Top-level value initializers are checked only with contextual offers available earlier in source order. Top-level function bodies are checked with the complete top-level contextual offer environment.
 
 == Local Scope
 
-Local `let`, local named `fn`, and local `open` items are sequential. A local binding is visible only to later local items and the final expression in the same block.
+Local `let`, local named `fn`, and local `offer` items are sequential. A local binding is visible only to later local items and the final expression in the same block.
 
 ```lane2
 {
   let x = e
   fn f(y : T) -> U { b }
-  open ops
+  offer ops
   result
 }
 ```
@@ -1295,143 +1327,117 @@ let x = outer
   $ #sym.Gamma' #sym.tack.r x #sym.arrow.r s_2 $
 ]
 
-== Open Scope Extensions
+== Contextual Offers
 
-`open x` requires `x` to resolve as a unique ordinary value binding. The operand is a value name, not an arbitrary expression.
+`offer x` requires `x` to resolve as a unique ordinary value binding whose type is already known. The operand is a value name, not an arbitrary expression or field path.
 
 ```lane2
-open ops
+offer int_add_ops
 ```
 
 #rule[
-  $ #sym.Gamma #sym.tack.r x #sym.arrow.r s_V quad op("type-of")(s_V) = S[T_1, ..., T_n] $
+  $ #sym.Gamma #sym.tack.r x #sym.arrow.r s_V quad op("type-of")(s_V) = A $
 ][
-  $ (#sym.Delta, #sym.Gamma, #sym.Omega, #sym.Pi) #sym.tack.r op("open")(x) #sym.arrow.r s_V $
+  $ (#sym.Delta, #sym.Gamma, #sym.Omega) #sym.tack.r op("offer")(x) #sym.arrow.r (A #sym.arrow.r s_V), op("forward")(s_V) $
 ]
 
-An opened value must have a struct type. Opening the value exposes direct fields and fields forwarded by struct declaration `open` entries. The exposure belongs to the current open layer.
+A contextual offer affects only Contextual Resolution. It does not introduce an ordinary value binding and does not expose fields as unqualified names.
+
+```lane2
+let offer int_add_ops : Add[Int] = Add::{ add: int_add }
+1 + 2
+```
+
+Multiple visible offers may have the same type. This is not an error at the offer declaration point. Ambiguity is reported only when Contextual Resolution needs a unique value of that type.
+
+```lane2
+offer left_add
+offer right_add
+1 + 2 // ambiguous if both offers have type Add[Int]
+```
+
+#rule[
+  $ #sym.Omega #sym.tack.r A #sym.arrow.r (s_1, ..., s_n) quad n = 1 $
+][
+  $ #sym.Omega #sym.tack.r op("contextual")(A) #sym.arrow.r s_1 $
+]
+
+#rule[
+  $ #sym.Omega #sym.tack.r A #sym.arrow.r () $
+][
+  $ #sym.Omega #sym.tack.r op("contextual")(A) #sym.arrow.r op("error")("missing-offer") $
+]
+
+#rule[
+  $ #sym.Omega #sym.tack.r A #sym.arrow.r (s_1, ..., s_n) quad n > 1 $
+][
+  $ #sym.Omega #sym.tack.r op("contextual")(A) #sym.arrow.r op("error")("ambiguous-offer") $
+]
+
+Repeating the same offer identity is semantically idempotent but should produce a warning. Contextual offer deduplication uses offer identity, not runtime value equality.
+
+Visible contextual offers from nested lexical scopes are combined rather than shadowed. Nested local function bodies can see contextual offers from their lexical environment.
+
+== Contextual Forwarding Fields
+
+When a value is offered, fields declared with the `offer` modifier are offered recursively. Forwarding contributes only to Contextual Resolution and never to ordinary value lookup.
 
 ```lane2
 struct Compare[T] {
-  equal_impl : Equal[T]
-  open equal_impl
-  op_less : (T, T) -> Bool
+  offer equal_impl : Equal[T]
+  less : (T, T) -> Bool
 }
 
-open compare_ops
+offer int_compare_ops
 ```
 
-#rule[
-  $ R #sym.tack.r op("open")(x) #sym.arrow.r s_V quad op("fields")(s_V) = (l_1 : s_(F,1), ..., l_n : s_(F,n)) $
-][
-  $ R #sym.tack.r op("open-layer")(x) #sym.arrow.r (l_1 #sym.arrow.r s_(F,1), ..., l_n #sym.arrow.r s_(F,n)) $
-]
-
-Open exposure name repetition is not an error at the open declaration point. Repeated exposed names in the same open layer form a candidate set.
-
-```lane2
-open int_ops
-open float_ops
-op_add
-```
+Offering `int_compare_ops : Compare[Int]` also offers `int_compare_ops.equal_impl : Equal[Int]`. Forwarding uses normal nominal field typing of the containing value. Recursive forwarding must detect cycles.
 
 #rule[
-  $ #sym.Omega #sym.tack.r x #sym.arrow.r (s_1, ..., s_n) $
+  $ op("type-of")(s_V) = S[T_1, ..., T_n] quad op("offered-fields")(S[T_1, ..., T_n]) = (l_1 : A_1, ..., l_m : A_m) $
 ][
-  $ #sym.Omega ";" #sym.Pi #sym.tack.r x #sym.arrow.r (s_1, ..., s_n) $
+  $ op("forward")(s_V) = (A_1 #sym.arrow.r s_V.l_1, ..., A_m #sym.arrow.r s_V.l_m), op("forward")(s_V.l_1), ..., op("forward")(s_V.l_m) $
 ]
 
-== Preopen
+== Direct Named Calls and Contextual Arguments
 
-The preopen namespace is a default-open layer prepared by the prelude before user code is resolved. It exposes field values from prelude-provided open bindings.
-
-```lane2
-let open int_add_ops : Add[Int] = Add::{ op_add: int_add }
-```
-
-#rule[
-  $ op("prelude-open-bindings") = (s_1, ..., s_n) quad op("fields")(s_i) = O_i $
-][
-  $ #sym.Pi = op("merge")(O_1, ..., O_n) $
-]
-
-Open layers shadow outer open layers and preopen. Ordinary value bindings and open exposures use separate shadowing.
+A function introduced by a named function definition may declare contextual parameters with `auto`. They must form a contiguous suffix of the parameter list. A contextual parameter remains an ordinary parameter in the function type.
 
 ```lane2
-{
-  open local_ops
-  op_add
+fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T {
+  op.add(a, b)
 }
 ```
 
-#rule[
-  $ #sym.Omega #sym.tack.r x #sym.arrow.r O $
-][
-  $ #sym.Omega ";" #sym.Pi #sym.tack.r x #sym.arrow.r O $
-]
-
-#rule[
-  $ #sym.Omega #sym.tack.r x #sym.arrow.r () quad #sym.Pi #sym.tack.r x #sym.arrow.r O $
-][
-  $ #sym.Omega ";" #sym.Pi #sym.tack.r x #sym.arrow.r O $
-]
-
-== Value References and Candidate Selection
-
-An unqualified value reference combines the nearest ordinary value binding candidate with candidates exposed by the nearest applicable open layer.
+A direct named function call is a call whose callee is a direct value reference to a function definition symbol. Only direct named function calls may omit contextual parameters or use explicit contextual arguments. Calls through ordinary function values must provide every argument positionally according to the function type.
 
 ```lane2
-op_add
+op_add(1, 2)
+op_add(1, 2, op=custom_add)
 ```
 
-#rule[
-  $ #sym.Gamma #sym.tack.r x #sym.arrow.r P quad #sym.Omega ";" #sym.Pi #sym.tack.r x #sym.arrow.r O $
-][
-  $ (#sym.Delta, #sym.Gamma, #sym.Omega, #sym.Pi) #sym.tack.r x #sym.arrow.r op("combine")(P, O) $
-]
-
-Candidate selection uses only direct local typing information: an expected type, function call argument count and argument checking, and generic instantiation determined by the same local information. Lane2 does not choose a default candidate.
+Explicit contextual arguments are named. Positional call arguments cannot fill contextual parameters.
 
 ```lane2
-op_add(1, 2) // selected by call shape and argument types
+op_add(1, 2, custom_add) // invalid
 ```
 
-#rule[
-  $ R #sym.tack.r x #sym.arrow.r Q quad op("select")(Q, K) = s_V $
-][
-  $ R ";" K #sym.tack.r x #sym.arrow.r s_V $
-]
+The right-hand side of an explicit contextual argument is an ordinary expression. Explicit contextual arguments participate in ordinary generic call inference before Contextual Resolution supplies the remaining omitted contextual parameters.
 
-#rule[
-  $ R #sym.tack.r x #sym.arrow.r Q quad op("select")(Q, K) = op("ambiguous") $
-][
-  $ R ";" K #sym.tack.r x #sym.arrow.r op("error")("ambiguous") $
-]
-
-A plain value reference starts with `.` and excludes open and preopen exposures.
-
-```lane2
-.op_add
-```
-
-#rule[
-  $ #sym.Gamma #sym.tack.r x #sym.arrow.r s_V $
-][
-  $ (#sym.Delta, #sym.Gamma, #sym.Omega, #sym.Pi) ";" K #sym.tack.r op("plain-ref")(x) #sym.arrow.r s_V $
-]
+Contextual Resolution never infers generic type arguments for the call being completed. It runs only after ordinary positional arguments, explicit contextual arguments, and the direct expected result type have determined the target contextual parameter types.
 
 == Special Resolution Forms
 
-An unqualified enum variant expression may resolve without qualification only when candidate selection chooses exactly one visible variant.
+An unqualified enum variant expression may resolve without qualification only when exactly one visible enum variant has that name.
 
 ```lane2
 some(1)
 ```
 
 #rule[
-  $ op("variants-named")(#sym.Delta, v) = Q quad op("select")(Q, K) = s_R $
+  $ op("variants-named")(#sym.Delta, v) = (s_R) $
 ][
-  $ (#sym.Delta, #sym.Gamma, #sym.Omega, #sym.Pi) ";" K #sym.tack.r op("variant-ref")(v) #sym.arrow.r s_R $
+  $ R ";" K #sym.tack.r op("variant-ref")(v) #sym.arrow.r s_R $
 ]
 
 Field access first resolves and checks its base as a unique value, then selects a field owned by the base struct type.
@@ -1446,15 +1452,15 @@ ops.op_add
   $ R ";" K #sym.tack.r op("field-access")(x, l) #sym.arrow.r s_F $
 ]
 
-Operator aliases first map to fixed ordinary operation names, then use ordinary value lookup and candidate selection. `&&` and `||` add only right-operand thunking after the operation value has been resolved.
+Operator aliases first map to fixed ordinary operation names, then elaborate to direct named calls when the operation name resolves to a function definition symbol. `&&` and `||` additionally thunk the right operand before the call is checked.
 
 ```lane2
-a + b  // resolves through op_add
-a && b // resolves through op_and, then thunks b
+a + b  // elaborates to op_add(a, b)
+a && b // elaborates to op_and(a, fn() { b })
 ```
 
 #rule[
-  $ op("operator-name")(op) = x quad R ";" K #sym.tack.r x #sym.arrow.r s_V $
+  $ op("operator-name")(op) = x quad #sym.Gamma #sym.tack.r x #sym.arrow.r s_V $
 ][
   $ R ";" K #sym.tack.r op("operator")(op) #sym.arrow.r s_V $
 ]
@@ -1481,7 +1487,7 @@ Allowed local items:
 
 - `let`,
 - named `fn`,
-- `open`.
+- `offer`.
 
 Local type definitions are not supported in v1.
 
@@ -1514,27 +1520,25 @@ Both branches must have the same type.
 
 == Calls, Field Access, and Pipeline
 
-An unqualified value reference may denote a candidate set. Candidate selection uses direct local typing information:
-
-- a direct expected type, including expected result types for function bodies and branch expressions;
-- function call argument count and argument checking against candidate parameter types;
-- generic instantiation determined by the same direct local typing information.
-
-Lane2 does not choose a default candidate. If more than one candidate remains applicable, the reference is ambiguous. Diagnostics for ambiguous candidates should list source-level disambiguation paths such as `.name` for an ordinary binding and `owner.field` for an opened field.
-
-A plain value reference begins with `.` and resolves only ordinary lexical value bindings:
-
-```lane2
-.op_add
-```
-
-Plain value references still follow ordinary lexical shadowing among ordinary bindings, but exclude open and preopen exposures.
-
 Function call:
 
 ```lane2
 f(x, y)
 ```
+
+A direct named function call may omit trailing contextual parameters declared with `auto`. The omitted parameters are supplied by Contextual Resolution after ordinary argument checking and generic call inference determine their target types.
+
+```lane2
+op_add(1, 2)
+```
+
+A caller may explicitly supply contextual parameters by name:
+
+```lane2
+op_add(1, 2, op=custom_add)
+```
+
+Named call arguments are valid only for contextual parameters of direct named function calls. Non-contextual parameters cannot be supplied by name, and contextual parameters cannot be supplied positionally.
 
 Field access:
 
@@ -1542,7 +1546,7 @@ Field access:
 ops.add
 ```
 
-The base of field access must resolve and check as a unique value before field selection. Field access does not search through an unresolved candidate set for a base value.
+The base of field access must resolve and check as a unique value before field selection.
 
 Field access followed by call:
 
@@ -1575,7 +1579,7 @@ value |> f(_, y)
 
 Placeholders are not supported.
 
-= Structs, Enums, and Open
+= Structs and Enums
 
 Struct literals are qualified:
 
@@ -1669,34 +1673,29 @@ let x : Option[Int] = Option::some(1)
 
 In patterns, variants must always be qualified.
 
-== Openable Struct Values
+== Contextual Forwarding Fields
 
-Only struct values can be opened.
-
-Opening a struct value exposes its field values as unqualified bindings according to the scope rules in "Scopes and Bindings".
-
-Enum values, function values, primitive values, and arbitrary expressions are not openable.
-
-== Struct Field Forwarding
-
-A struct declaration may contain `open field` entries:
+A struct field may be marked with `offer`:
 
 ```lane2
 struct Compare[T] {
-  equal_impl : Equal[T]
-  open equal_impl
-  op_less : (T, T) -> Bool
-  op_less_eq : (T, T) -> Bool
-  op_greater : (T, T) -> Bool
-  op_greater_eq : (T, T) -> Bool
+  offer equal_impl : Equal[T]
+  less : (T, T) -> Bool
+  less_eq : (T, T) -> Bool
+  greater : (T, T) -> Bool
+  greater_eq : (T, T) -> Bool
 }
 ```
 
-When a value of this struct type is opened, forwarded fields are exposed too. Direct fields and forwarded fields from the same opened struct value contribute to the same open exposure layer.
+When a value of this struct type is offered, contextual forwarding fields are also offered. The forwarded field type is obtained by ordinary nominal field typing of the containing value.
 
-Repeated exposed names are not conflicts at the open declaration point. Ambiguity is reported only at use sites when candidate selection cannot choose exactly one value.
+```lane2
+offer int_compare_ops
+```
 
-Struct field forwarding affects only what is exposed by opening the containing struct value. It does not open the field inside ordinary function bodies.
+If `int_compare_ops : Compare[Int]`, the offer declaration contributes both `Compare[Int]` and `Equal[Int]` offers: the latter is the field path `int_compare_ops.equal_impl`.
+
+Contextual forwarding fields do not expose unqualified field names. They affect only Contextual Resolution. Forwarding is recursive and must detect cycles.
 
 = Pattern Matching
 
@@ -1758,9 +1757,9 @@ Rest patterns, spread patterns, guards, or-patterns, as-patterns, and `is` patte
 
 Operators are aliases for fixed ordinary operation names.
 
-There is no trait, typeclass, or instance search. An operator is available only when the corresponding operation name resolves to a suitable value through ordinary value lookup and open candidate selection.
+There is no trait, typeclass, or general instance search. An operator is available when the corresponding operation name resolves to a direct named function call whose non-contextual arguments and contextual parameters can be checked.
 
-Primitive operators are not special-cased. For example, `1 + 2` resolves through the ordinary name `op_add`; that name can be supplied by a normal binding or by opening a struct value with an `op_add` field.
+Primitive operators are not special-cased. For example, `1 + 2` elaborates through the ordinary name `op_add`; the standard prelude defines `op_add` as a generic named function with an `auto` operation parameter.
 
 Recognized operator mappings:
 
@@ -1786,11 +1785,11 @@ Recognized operator mappings:
   )
 ]
 
-Operation names such as `op_add` are ordinary value names, not reserved words. Lane2 v1 does not allow user-defined operator tokens or user-defined operator mappings.
+Operation names such as `op_add` are ordinary value names, not reserved words. User code may define them subject to ordinary binding uniqueness. Lane2 v1 does not allow user-defined operator tokens or user-defined operator mappings.
 
-`&&` and `||` are short-circuit boolean operators. They resolve through `op_and` and `op_or`, but the right operand is passed as a zero-argument function instead of being evaluated before the operation call.
+`&&` and `||` are short-circuit boolean operators. They elaborate through `op_and` and `op_or`, but the right operand is passed as a zero-argument function instead of being evaluated before the operation call.
 
-`a && b` desugars to a call equivalent to `op_and(a, fn() { b })` after resolving an available `op_and` operation. `a || b` follows the same rule with `op_or`. Both operators are defined only for `Bool` in v1.
+`a && b` desugars to a call equivalent to `op_and(a, fn() { b })`. `a || b` follows the same rule with `op_or`. The resulting direct named call may use Contextual Resolution to supply the operation value.
 
 Ordinary calls to `op_and` and `op_or` are strict. Only the `&&` and `||` operator syntaxes thunk the right operand.
 

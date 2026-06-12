@@ -1,23 +1,23 @@
-struct Constants {
-  answer : Int
+struct Meter {
+  value : Int
 }
 
-struct Environment {
-  constants : Constants
-  open constants
-  increment : (Int) -> Int
+fn meter_equal(a : Meter, b : Meter) -> Bool {
+  a.value == b.value
 }
 
-fn inc(value : Int) -> Int {
-  value + 1
+struct MeterOps {
+  offer equal_impl : Equal[Meter]
 }
 
-let env : Environment = Environment::{
-  constants: Constants::{ answer: 42 },
-  increment: inc,
-}
+let meter_equal_ops : Equal[Meter] = make_equal(meter_equal)
+
+let offer meter_ops : MeterOps = MeterOps::{ equal_impl: meter_equal_ops }
 
 fn use_forwarded_field() -> Int {
-  open env
-  increment(answer)
+  if Meter::{ value: 1 } == Meter::{ value: 1 } {
+    1
+  } else {
+    0
+  }
 }

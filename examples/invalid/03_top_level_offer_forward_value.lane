@@ -1,9 +1,8 @@
-// invalid: top-level open may only open an already available value
-open constants
+// invalid: top-level offer may only offer an already available value
+offer constants
 
 struct Constants {
   answer : Int
 }
 
 let constants : Constants = Constants::{ answer: 42 }
-
