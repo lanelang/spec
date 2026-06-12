@@ -1308,7 +1308,7 @@ Offered value definitions must be named. They are not forward-visible and do not
 
 == Resolution Model
 
-Name resolution maps source names to symbols before typed core is produced. It does not evaluate expressions. Contextual Resolution is a later type-directed step that supplies omitted contextual arguments from visible offers after ordinary call inference has determined the target contextual parameter types.
+Name resolution maps source names to symbols before Buslane Core Language is produced. It does not evaluate expressions. Contextual Resolution is a later type-directed step that supplies omitted contextual arguments from visible offers after ordinary call inference has determined the target contextual parameter types.
 
 The resolution environment has separate namespaces for type names, value names, and contextual offers. Field and variant symbols are owned by nominal type symbols and are not global value bindings.
 
@@ -1995,6 +1995,14 @@ Operation names such as `op_add` are ordinary value names, not reserved words. U
 Ordinary calls to `op_and` and `op_or` are strict. Only the `&&` and `||` operator syntaxes thunk the right operand.
 
 Concrete expression precedence, associativity, and unary/binary disambiguation follow the MoonBit parser reference where Lane2 has not deliberately removed a feature.
+
+= Core Language and ANF
+
+Buslane is the Lane2 Core Language. It is a typed expression-tree language produced after source elaboration and before administrative normalization.
+
+A Buslane program contains nominal type declarations, typed function declarations, typed value declarations, and typed expressions. It does not contain source-only syntax such as pipeline expressions, operator tokens, contextual offer lookup, omitted contextual arguments, field punning, or unresolved names. Buslane expressions preserve ordinary expression structure: calls, type applications, conditionals, matches, field access, nominal construction, function values, type lambdas, literals, and unsafe builtins are represented directly.
+
+ANF is a later intermediate representation, not the Core Language. ANF preserves Buslane typing and evaluation behavior while introducing atom, right-hand-side, binding, and temporary structure to make evaluation order explicit. A conforming implementation may evaluate Buslane directly or may lower Buslane to ANF first, but the observable behavior of safe programs must be the same.
 
 = Evaluation
 
