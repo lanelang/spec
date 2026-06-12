@@ -12,7 +12,7 @@ struct MeterOps {
 
 let meter_equal_ops : Equal[Meter] = make_equal(meter_equal)
 
-let offer meter_ops : MeterOps = MeterOps::{ equal_impl: meter_equal_ops }
+offer meter_ops : MeterOps = MeterOps::{ equal_impl: meter_equal_ops }
 
 fn use_forwarded_field() -> Int {
   if Meter::{ value: 1 } == Meter::{ value: 1 } {

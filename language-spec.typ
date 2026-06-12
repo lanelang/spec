@@ -292,8 +292,7 @@ topLevelDeclaration ::=
   | enumDeclaration
   | functionDeclaration
   | topLevelLetDeclaration
-  | topLevelOfferedLetDeclaration
-  | offerDeclaration
+  | offerValueDeclaration
 
 structDeclaration ::=
     "struct" typeName typeParameters? "{" structMember* "}"
@@ -332,20 +331,14 @@ parameterModifier ::=
 topLevelLetDeclaration ::=
     "let" valueName space ":" space type "=" expression
 
-topLevelOfferedLetDeclaration ::=
-    "let" "offer" valueName space ":" space type "=" expression
-
 localLetDeclaration ::=
     "let" valueName typeAnnotation? "=" expression
-
-localOfferedLetDeclaration ::=
-    "let" "offer" valueName typeAnnotation? "=" expression
 
 typeAnnotation ::=
     space ":" space type
 
-offerDeclaration ::=
-    "offer" valueName
+offerValueDeclaration ::=
+    "offer" valueName space ":" space type "=" expression
 
 type ::=
     typeConstructor typeArguments?
@@ -445,9 +438,8 @@ block ::=
 
 localItem ::=
     localLetDeclaration
-  | localOfferedLetDeclaration
   | functionDeclaration
-  | offerDeclaration
+  | offerValueDeclaration
 
 ifExpression ::=
     "if" expression block "else" block
@@ -1043,7 +1035,7 @@ Declarations introduce types, functions, values, and contextual offers.
 
 Top-level declarations are described by the `topLevelDefinition` grammar in "Syntax and Grammar".
 
-Top-level forms include struct declarations, enum declarations, named function declarations, typed value declarations, offered value definitions, and offer declarations.
+Top-level forms include struct declarations, enum declarations, named function declarations, typed value declarations, and offered value definitions.
 
 == Struct Declarations
 
@@ -1121,19 +1113,19 @@ Named top-level `let` declarations must include type annotations.
 
 Local `let` declarations may omit type annotations when their initializer can synthesize a type by local type inference.
 
-An offered value definition has the form `let offer name ... = expression`. It is syntax sugar for a value declaration immediately followed by `offer name`.
+An offered value definition has the form `offer name : Type = expression`. It defines a named value and immediately adds that value to the contextual offer environment.
 
-Top-level offered value definitions must include type annotations because all top-level value declarations must include type annotations:
+Offered value definitions must include type annotations:
 
 ```lane2
-let offer int_add_ops : Add[Int] = Add::{ add: int_add }
+offer int_add_ops : Add[Int] = Add::{ add: int_add }
 ```
 
-Local offered value definitions may omit type annotations when their initializer can synthesize a type:
+Local offered value definitions use the same annotated form:
 
 ```lane2
 {
-  let offer ops = Add::{ add: int_add }
+  offer ops : Add[Int] = Add::{ add: int_add }
   1 + 2
 }
 ```
@@ -1252,12 +1244,11 @@ fn f(x : T) -> T { x }
   $ op("top-recursive")(d_1, ..., d_n) = (#sym.Delta, #sym.Gamma) $
 ]
 
-Top-level value definitions and top-level `offer` declarations are resolved in source order. A top-level `let` initializer may refer only to values and contextual offers available at that declaration point. A top-level function body is resolved after the complete top-level function, value, and contextual offer environments are known.
+Top-level value definitions and top-level offered value definitions are resolved in source order. A top-level initializer may refer only to values and contextual offers available at that declaration point. A top-level function body is resolved after the complete top-level function, value, and contextual offer environments are known.
 
 ```lane2
 let x : Int = earlier
-offer int_add_ops
-let offer y_ops : Add[Int] = Add::{ add: int_add }
+offer y_ops : Add[Int] = Add::{ add: int_add }
 ```
 
 #rule[
@@ -1266,35 +1257,29 @@ let offer y_ops : Add[Int] = Add::{ add: int_add }
   $ R_i #sym.tack.r op("top-let")(x_i, T_i, e_i) #sym.arrow.r R_(i+1) $
 ]
 
-#rule[
-  $ #sym.Gamma _i #sym.tack.r x #sym.arrow.r s_V quad R_(i+1) = R_i, op("offer")(s_V) $
-][
-  $ R_i #sym.tack.r op("offer-decl")(x) #sym.arrow.r R_(i+1) $
-]
-
-An offered value definition first binds the value, then offers that value from the declaration point forward.
+An offered value definition checks its initializer with the current environment, defines the named value, and offers that value from the declaration point forward.
 
 ```lane2
-let offer ops : Add[Int] = Add::{ add: int_add }
+offer ops : Add[Int] = Add::{ add: int_add }
 ```
 
 #rule[
-  $ R_i #sym.tack.r op("top-let")(x, T, e) #sym.arrow.r R_j quad R_j #sym.tack.r op("offer-decl")(x) #sym.arrow.r R_(j+1) $
+  $ R_i ";" K_i #sym.tack.r e #sym.arrow.r e' quad R_(i+1) = R_i, x #sym.arrow.r s_V, op("offer")(s_V) $
 ][
-  $ R_i #sym.tack.r op("top-let-offer")(x, T, e) #sym.arrow.r R_(j+1) $
+  $ R_i #sym.tack.r op("top-offer-value")(x, T, e) #sym.arrow.r R_(i+1) $
 ]
 
 Top-level value initializers are checked only with contextual offers available earlier in source order. Top-level function bodies are checked with the complete top-level contextual offer environment.
 
 == Local Scope
 
-Local `let`, local named `fn`, and local `offer` items are sequential. A local binding is visible only to later local items and the final expression in the same block.
+Local `let`, local named `fn`, and local offered value definitions are sequential. A local binding is visible only to later local items and the final expression in the same block.
 
 ```lane2
 {
   let x = e
   fn f(y : T) -> U { b }
-  offer ops
+  offer ops : Add[Int] = Add::{ add: int_add }
   result
 }
 ```
@@ -1329,30 +1314,30 @@ let x = outer
 
 == Contextual Offers
 
-`offer x` requires `x` to resolve as a unique ordinary value binding whose type is already known. The operand is a value name, not an arbitrary expression or field path.
+An offered value definition introduces a named value with an explicit type annotation and contributes that value to Contextual Resolution.
 
 ```lane2
-offer int_add_ops
+offer int_add_ops : Add[Int] = Add::{ add: int_add }
 ```
 
 #rule[
   $ #sym.Gamma #sym.tack.r x #sym.arrow.r s_V quad op("type-of")(s_V) = A $
 ][
-  $ (#sym.Delta, #sym.Gamma, #sym.Omega) #sym.tack.r op("offer")(x) #sym.arrow.r (A #sym.arrow.r s_V), op("forward")(s_V) $
+  $ (#sym.Delta, #sym.Gamma, #sym.Omega) #sym.tack.r op("offer-value")(x) #sym.arrow.r (A #sym.arrow.r s_V), op("forward")(s_V) $
 ]
 
-A contextual offer affects only Contextual Resolution. It does not introduce an ordinary value binding and does not expose fields as unqualified names.
+A contextual offer affects only Contextual Resolution. It does not expose fields as unqualified names.
 
 ```lane2
-let offer int_add_ops : Add[Int] = Add::{ add: int_add }
+offer int_add_ops : Add[Int] = Add::{ add: int_add }
 1 + 2
 ```
 
-Multiple visible offers may have the same type. This is not an error at the offer declaration point. Ambiguity is reported only when Contextual Resolution needs a unique value of that type.
+Multiple visible offers may have the same type. This is not an error at the offered value definition point. Ambiguity is reported only when Contextual Resolution needs a unique value of that type.
 
 ```lane2
-offer left_add
-offer right_add
+offer left_add : Add[Int] = Add::{ add: int_add }
+offer right_add : Add[Int] = Add::{ add: alternate_int_add }
 1 + 2 // ambiguous if both offers have type Add[Int]
 ```
 
@@ -1388,7 +1373,7 @@ struct Compare[T] {
   less : (T, T) -> Bool
 }
 
-offer int_compare_ops
+offer int_compare_ops : Compare[Int] = Compare::{ equal_impl, less: int_less }
 ```
 
 Offering `int_compare_ops : Compare[Int]` also offers `int_compare_ops.equal_impl : Equal[Int]`. Forwarding uses normal nominal field typing of the containing value. Recursive forwarding must detect cycles.
@@ -1690,10 +1675,10 @@ struct Compare[T] {
 When a value of this struct type is offered, contextual forwarding fields are also offered. The forwarded field type is obtained by ordinary nominal field typing of the containing value.
 
 ```lane2
-offer int_compare_ops
+offer int_compare_ops : Compare[Int] = Compare::{ equal_impl, less: int_less }
 ```
 
-If `int_compare_ops : Compare[Int]`, the offer declaration contributes both `Compare[Int]` and `Equal[Int]` offers: the latter is the field path `int_compare_ops.equal_impl`.
+If `int_compare_ops : Compare[Int]`, the offered value definition contributes both `Compare[Int]` and `Equal[Int]` offers: the latter is the field path `int_compare_ops.equal_impl`.
 
 Contextual forwarding fields do not expose unqualified field names. They affect only Contextual Resolution. Forwarding is recursive and must detect cycles.
 
