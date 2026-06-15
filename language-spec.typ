@@ -1145,11 +1145,11 @@ The checker does not interpret intrinsic strings. Instead, `builtin` receives it
 
 ```lane2
 fn int_add(a : Int, b : Int) -> Int {
-  builtin("%i64_add")
+  builtin("%i64_add")(a, b)
 }
 ```
 
-This is valid because the function return type provides the expected type `Int` for the body expression.
+This is valid because the function return type provides the expected result type `Int` for the call, and the argument expressions provide the builtin parameter types.
 
 This is invalid:
 
