@@ -768,7 +768,7 @@ fn f(x1 : T1, ..., xn : Tn) -> R { e } // function definition
 #rule[
   $ #sym.Gamma, x_1 : T_1, ..., x_n : T_n #sym.tack.r e : R $
 ][
-  $ #sym.Gamma #sym.tack.r "fn" (x_1 : T_1, ..., x_n : T_n) "->" R "{" e "}" : (T_1, ..., T_n) -> R $
+  $ #sym.Gamma #sym.tack.r "fn" (x_1 : T_1, ..., x_n : T_n) #sym.arrow.r R "{" e "}" : (T_1, ..., T_n) -> R $
 ]
 
 *Function elimination.*
@@ -822,7 +822,7 @@ A generic function literal or named generic function introduces a generic functi
     #[$ #sym.Gamma, x_1 : T_1, ..., x_m : T_m #sym.tack.r e : R $],
   )) $
 ][
-  $ #sym.Gamma #sym.tack.r "fn" "[" A_1, ..., A_n "]" (x_1 : T_1, ..., x_m : T_m) "->" R "{" e "}" : #sym.forall A_1, ..., A_n "." (T_1, ..., T_m) -> R $
+  $ #sym.Gamma #sym.tack.r "fn" "[" A_1, ..., A_n "]" (x_1 : T_1, ..., x_m : T_m) #sym.arrow.r R "{" e "}" : #sym.forall A_1, ..., A_n "." (T_1, ..., T_m) -> R $
 ]
 
 *Generic function elimination.*
@@ -1776,7 +1776,7 @@ Both branches must have the same type.
     #[$ M #sym.tack.r x_c : "Bool" $],
   )) $
 ][
-  $ L; #sym.Theta; #sym.Gamma #sym.tack.r "if" c "then" e_1 "else" e_2 #sym.arrow.r "match" b_c "as" x_c "->" T "{" "true" #sym.arrow.r b_1, "false" #sym.arrow.r b_2 "}" : T $
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r "if" c "then" e_1 "else" e_2 #sym.arrow.r "match" b_c "as" x_c #sym.arrow.r T "{" "true" #sym.arrow.r b_1, "false" #sym.arrow.r b_2 "}" : T $
 ]
 
 == Calls, Field Access, and Pipeline
@@ -2084,7 +2084,7 @@ Source match elaborates to Buslane match. Every source pattern is lowered to one
     #[$ #sym.forall i "." L; #sym.Theta; #sym.Gamma #sym.tack.r a_i #sym.arrow.r A_i : alpha(x_m, T, R) $],
   )) $
 ][
-  $ L; #sym.Theta; #sym.Gamma #sym.tack.r "match" e "{" a_1, ..., a_n "}" #sym.arrow.r "match" b "as" x_m "->" R "{" A_1, ..., A_n "}" : R $
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r "match" e "{" a_1, ..., a_n "}" #sym.arrow.r "match" b "as" x_m #sym.arrow.r R "{" A_1, ..., A_n "}" : R $
 ]
 
 #tapl-rule("E-ArmWildcard")[
@@ -2190,7 +2190,7 @@ Lazy boolean operators elaborate to operation calls whose right operand is a nul
     #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r e_2 #sym.arrow.r b_2 : "Bool" $],
   )) $
 ][
-  $ L; #sym.Theta; #sym.Gamma #sym.tack.r e_1 o e_2 #sym.arrow.r f(b_1, "fn" () "->" "Bool" "{" b_2 "}") : "Bool" $
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r e_1 o e_2 #sym.arrow.r f(b_1, "fn" () #sym.arrow.r "Bool" "{" b_2 "}") : "Bool" $
 ]
 
 Unary operators elaborate to ordinary direct named calls with one argument.
@@ -2337,14 +2337,14 @@ Types and data constructors live in metadata, not in the top-level term sequence
   $ display(cases(
     #[$ e ::= x $],
     #[$ quad "|" l $],
-    #[$ quad "|" "fn" (x_1, ..., x_n) "->" R "{" e "}" $],
+    #[$ quad "|" "fn" (x_1, ..., x_n) #sym.arrow.r R "{" e "}" $],
     #[$ quad "|" e(e_1, ..., e_n) $],
     #[$ quad "|" "fn" "[" A_1, ..., A_n "]" "{" e "}" $],
     #[$ quad "|" e[T_1, ..., T_n] $],
     #[$ quad "|" K[T_1, ..., T_n; U_1, ..., U_r](e_1, ..., e_m) $],
     #[$ quad "|" "let" x = e_1 "in" e_2 $],
     #[$ quad "|" "letrec" r "in" e $],
-    #[$ quad "|" "match" e "as" x "->" R "{" a_1, ..., a_n "}" $],
+    #[$ quad "|" "match" e "as" x #sym.arrow.r R "{" a_1, ..., a_n "}" $],
   )) $
 ]
 
@@ -2470,7 +2470,7 @@ Forall type equality uses alpha-equivalence. Globally unique `TypeParameterId` v
     #[$ M; #sym.Theta; #sym.Gamma, x_1, ..., x_n #sym.tack.r e : R $],
   )) $
 ][
-  $ M; #sym.Theta; #sym.Gamma #sym.tack.r "fn" (x_1, ..., x_n) "->" R "{" e "}" : (T_1, ..., T_n) -> R $
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r "fn" (x_1, ..., x_n) #sym.arrow.r R "{" e "}" : (T_1, ..., T_n) -> R $
 ]
 
 The function body is an arbitrary Buslane expression checked against the explicit result type. Parameter types come from metadata.
@@ -2560,7 +2560,7 @@ Every right-hand side #math.inline[$h_i$] in a let-rec group must be a function 
     #[$ chi(M, T, a_1, ..., a_n) $],
   )) $
 ][
-  $ M; #sym.Theta; #sym.Gamma #sym.tack.r "match" e "as" x "->" R "{" a_1, ..., a_n "}" : R $
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r "match" e "as" x #sym.arrow.r R "{" a_1, ..., a_n "}" : R $
 ]
 
 Alternative bodies do not store result types. Each body is checked against the enclosing match result type.
@@ -2608,7 +2608,7 @@ Runtime values are:
 #formal-box[
   $ display(cases(
     #[$ w ::= l $],
-    #[$ quad "|" "fn" (x_1, ..., x_n) "->" R "{" e "}" $],
+    #[$ quad "|" "fn" (x_1, ..., x_n) #sym.arrow.r R "{" e "}" $],
     #[$ quad "|" "fn" "[" A_1, ..., A_n "]" "{" e "}" $],
     #[$ quad "|" #sym.chevron.l K[T_1, ..., T_n; U_1, ..., U_r](w_1, ..., w_m) #sym.chevron.r $],
     #[$ quad "|" "rec"(r, x) $],
@@ -2628,7 +2628,7 @@ Type arguments are runtime-erased for ordinary computation, but they remain pres
     #[$ quad "|" E[T_1, ..., T_n] $],
     #[$ quad "|" K[T; U](w_1, ..., w_(i-1), E, e_(i+1), ..., e_m) $],
     #[$ quad "|" "let" x = E "in" e $],
-    #[$ quad "|" "match" E "as" x "->" R "{" a_1, ..., a_n "}" $],
+    #[$ quad "|" "match" E "as" x #sym.arrow.r R "{" a_1, ..., a_n "}" $],
   )) $
 ]
 
@@ -2683,7 +2683,7 @@ Recursive values unroll when forced:
 #tapl-rule("B-E-Call")[
   $ #sym.sigma = [w_1 #sym.slash x_1, ..., w_n #sym.slash x_n] $
 ][
-  $ G #sym.tack.r ("fn" (x_1, ..., x_n) "->" R "{" e "}")(w_1, ..., w_n) #sym.arrow.r e #sym.sigma $
+  $ G #sym.tack.r ("fn" (x_1, ..., x_n) #sym.arrow.r R "{" e "}")(w_1, ..., w_n) #sym.arrow.r e #sym.sigma $
 ]
 
 Function arguments are evaluated before this rule applies.
@@ -2714,7 +2714,7 @@ Here, `T`, `U`, and `w` abbreviate the constructor's owner type arguments, hidde
 #tapl-rule("B-E-MatchLit")[
   $ delta_l(l, a_1, ..., a_n) = b $
 ][
-  $ G #sym.tack.r "match" l "as" x "->" R "{" a_1, ..., a_n "}" #sym.arrow.r b[l #sym.slash x] $
+  $ G #sym.tack.r "match" l "as" x #sym.arrow.r R "{" a_1, ..., a_n "}" #sym.arrow.r b[l #sym.slash x] $
 ]
 
 *Data-constructor match.*
@@ -2728,7 +2728,7 @@ Here, `T`, `U`, and `w` abbreviate the constructor's owner type arguments, hidde
     #[$ #sym.sigma = [d #sym.slash x, w_1 #sym.slash y_1, ..., w_m #sym.slash y_m] $],
   )) $
 ][
-  $ G #sym.tack.r "match" d "as" x "->" R "{" a_1, ..., a_n "}" #sym.arrow.r b #sym.rho #sym.sigma $
+  $ G #sym.tack.r "match" d "as" x #sym.arrow.r R "{" a_1, ..., a_n "}" #sym.arrow.r b #sym.rho #sym.sigma $
 ]
 
 *Default match.*
@@ -2739,7 +2739,7 @@ Here, `T`, `U`, and `w` abbreviate the constructor's owner type arguments, hidde
     #[$ nu_0(w, a_1, ..., a_n) $],
   )) $
 ][
-  $ G #sym.tack.r "match" w "as" x "->" R "{" a_1, ..., a_n "}" #sym.arrow.r b[w #sym.slash x] $
+  $ G #sym.tack.r "match" w "as" x #sym.arrow.r R "{" a_1, ..., a_n "}" #sym.arrow.r b[w #sym.slash x] $
 ]
 
 Because Buslane matches are verified as exhaustive, a well-formed Buslane match over a safe value never gets stuck for lack of an alternative.
