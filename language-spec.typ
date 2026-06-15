@@ -43,6 +43,18 @@
 
 #let rule(premise, conclusion) = align(center)[$ frac(#premise, #conclusion) $]
 
+#let tapl-rule(name, premise, conclusion) = math-box(
+  grid(
+    columns: (1fr, auto),
+    column-gutter: 1em,
+    align: (center, horizon),
+    align(center)[#math.equation(block: false, $ display(frac(#premise, #conclusion)) $)],
+    text(size: 9pt)[(#name)],
+  ),
+)
+
+#let formal-box(body) = math-box(align(center)[#math.equation(block: false, body)])
+
 = Introduction
 
 Lane2 is a strict, pure, expression-oriented functional programming language. Its first implementation target is a parser, a type checker, and an AST interpreter; later implementations may add bytecode compilation, a virtual machine, a linker, and effect handling.
@@ -552,7 +564,7 @@ space ::=
     whitespace+
 ```
 
-The precedence and associativity of `binaryOperator`, `unaryOperator`, calls, field access, and pipeline expressions are defined in "Operators".
+The precedence and associativity of `binaryOperator`, `unaryOperator`, calls, field access, and pipeline expressions are defined in "Operator Expressions".
 
 == Comments
 
@@ -602,29 +614,29 @@ Comments are trivia. Comments do not appear in the syntactic grammar.
     [$#sym.Gamma$], [value typing context],
     [$D$], [custom type definition],
     [$C #sym.arrow.r D #sym.in #sym.Delta$], [visible custom type definition binding],
-    [$op("struct")(A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m)$], [struct definition with universal parameters, existential type members, and value fields],
-    [$op("enum")(A_1, ..., A_n; v_j[B_(j,1) : K_(j,1), ..., B_(j,r_j) : K_(j,r_j)](P_(j,1), ..., P_(j,m_j)))$], [enum definition with universal parameters and variant-local existential binders],
-    [$op("params")(D) = (A_1, ..., A_n)$], [custom type parameters],
+    [$cal(S)(A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m)$], [struct definition with universal parameters, existential type members, and value fields],
+    [$cal(E)(A_1, ..., A_n; v_j[B_(j,1) : K_(j,1), ..., B_(j,r_j) : K_(j,r_j)](P_(j,1), ..., P_(j,m_j)))$], [enum definition with universal parameters and variant-local existential binders],
+    [$pi(D) = (A_1, ..., A_n)$], [custom type parameters],
     [$D #sym.tack.r v : (B_1 : K_1, ..., B_r : K_r; P_1, ..., P_m)$], [variant hidden binders and payload sequence declared by a custom type definition],
-    [$D #sym.tack.r op("variants")(v_1, ..., v_q)$], [variant sequence declared by a custom type definition],
+    [$D #sym.tack.r nu(v_1, ..., v_q)$], [variant sequence declared by a custom type definition],
     [$#sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v[U_1, ..., U_r] #sym.arrow.r (Q_1, ..., Q_m)$], [instantiated variant payload sequence],
     [$#sym.sigma$], [type substitution environment],
     [$#sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n]$], [substitution environment binding],
     [$#sym.rho = [U_1 #sym.slash B_1, ..., U_r #sym.slash B_r]$], [existential witness substitution],
     [$U[T_1 #sym.slash A_1, ..., T_n #sym.slash A_n]$], [direct type substitution],
     [$U #sym.sigma$], [type substitution by environment],
-    [$#sym.Delta; #sym.Theta #sym.tack.r T " type"$], [well-formed type],
+    [$#sym.Delta; #sym.Theta #sym.tack.r T : "Type"$], [well-formed type],
     [$C[T_1, ..., T_n]$], [nominal type application],
     [$#sym.forall A_1, ..., A_n "." T$], [universal type],
     [$#sym.exists B_1 : K_1, ..., B_r : K_r "." T$], [existential package model],
     [$T #sym.eq.triple U$], [type equality],
     [$#sym.Gamma #sym.tack.r e : T$], [expression typing],
-    [$op("hidden-free")(T)$], [type that mentions no unopened existential binder],
-    [$op("not-free")(B_1, ..., B_r; T)$], [none of the listed existential binders occurs free in type $T$],
-    [$op("struct-shape")(S[T_1, ..., T_n]) = (B_1 : K_1, ..., B_r : K_r; l_1 : Q_1, ..., l_m : Q_m)$], [instantiated struct type members and value fields],
-    [$op("arm-type")(E[T_1, ..., T_n], v, R)$], [typed enum match arm],
+    [$H(T)$], [type that mentions no unopened existential binder],
+    [$N(B_1, ..., B_r; T)$], [none of the listed existential binders occurs free in type $T$],
+    [$sigma_S(S[T_1, ..., T_n]) = (B_1 : K_1, ..., B_r : K_r; l_1 : Q_1, ..., l_m : Q_m)$], [instantiated struct type members and value fields],
+    [$alpha(E[T_1, ..., T_n], v, R)$], [typed enum match arm],
     [$frac(P, Q)$], [rule with premise $P$ and conclusion $Q$],
-    [$op("name")$], [abstract syntax constructor],
+    [$"if" c "then" e_1 "else" e_2$], [concrete expression notation in rules],
   )
 ]
 
@@ -640,13 +652,13 @@ Type -> Type
 ```
 
 #math-list(
-  $ #sym.Delta; #sym.Theta #sym.tack.r "Type" " kind" $,
+  $ #sym.Delta; #sym.Theta #sym.tack.r "Type" #sym.checkmark $,
 )
 
 #rule[
-  $ #sym.Delta; #sym.Theta #sym.tack.r K_1 " kind" quad #sym.Delta; #sym.Theta #sym.tack.r K_2 " kind" $
+  $ #sym.Delta; #sym.Theta #sym.tack.r K_1 #sym.checkmark quad #sym.Delta; #sym.Theta #sym.tack.r K_2 #sym.checkmark $
 ][
-  $ #sym.Delta; #sym.Theta #sym.tack.r K_1 -> K_2 " kind" $
+  $ #sym.Delta; #sym.Theta #sym.tack.r K_1 -> K_2 #sym.checkmark $
 ]
 
 Declarations that use type members must record the written kind. `Type` is the first required kind, and function kinds such as `Type -> Type` are specified so existential type members are higher-kind-ready.
@@ -658,10 +670,10 @@ Lane2/Core v1 has four primitive types: `Unit`, `Bool`, `Int`, and `String`.
 *Primitive formation.* Each primitive type is well-formed in every type environment.
 
 #math-list(
-  $ #sym.Delta; #sym.Theta #sym.tack.r "Unit" " type" $,
-  $ #sym.Delta; #sym.Theta #sym.tack.r "Bool" " type" $,
-  $ #sym.Delta; #sym.Theta #sym.tack.r "Int" " type" $,
-  $ #sym.Delta; #sym.Theta #sym.tack.r "String" " type" $,
+  $ #sym.Delta; #sym.Theta #sym.tack.r "Unit" : "Type" $,
+  $ #sym.Delta; #sym.Theta #sym.tack.r "Bool" : "Type" $,
+  $ #sym.Delta; #sym.Theta #sym.tack.r "Int" : "Type" $,
+  $ #sym.Delta; #sym.Theta #sym.tack.r "String" : "Type" $,
 )
 
 *Unit introduction.* The expression `()` introduces a `Unit` value.
@@ -699,7 +711,7 @@ if c {
 #rule[
   $ #sym.Gamma #sym.tack.r c : "Bool" quad #sym.Gamma #sym.tack.r e_1 : T quad #sym.Gamma #sym.tack.r e_2 : T $
 ][
-  $ #sym.Gamma #sym.tack.r op("if")(c, e_1, e_2) : T $
+  $ #sym.Gamma #sym.tack.r "if" c "then" e_1 "else" e_2 : T $
 ]
 
 *Int introduction.* Integer literals introduce `Int` values.
@@ -741,9 +753,9 @@ let f : (T1, ..., Tn) -> R = fn(x1, ..., xn) { e } // function literal binding
 ```
 
 #rule[
-  $ #sym.Delta; #sym.Theta #sym.tack.r T_1 " type" quad ... quad #sym.Delta; #sym.Theta #sym.tack.r T_n " type" quad #sym.Delta; #sym.Theta #sym.tack.r R " type" $
+  $ #sym.Delta; #sym.Theta #sym.tack.r T_1 : "Type" quad ... quad #sym.Delta; #sym.Theta #sym.tack.r T_n : "Type" quad #sym.Delta; #sym.Theta #sym.tack.r R : "Type" $
 ][
-  $ #sym.Delta; #sym.Theta #sym.tack.r (T_1, ..., T_n) -> R " type" $
+  $ #sym.Delta; #sym.Theta #sym.tack.r (T_1, ..., T_n) -> R : "Type" $
 ]
 
 *Function introduction.*
@@ -756,7 +768,7 @@ fn f(x1 : T1, ..., xn : Tn) -> R { e } // function definition
 #rule[
   $ #sym.Gamma, x_1 : T_1, ..., x_n : T_n #sym.tack.r e : R $
 ][
-  $ #sym.Gamma #sym.tack.r op("fn")((x_1 : T_1), ..., (x_n : T_n), R, e) : (T_1, ..., T_n) -> R $
+  $ #sym.Gamma #sym.tack.r "fn" (x_1 : T_1, ..., x_n : T_n) "->" R "{" e "}" : (T_1, ..., T_n) -> R $
 ]
 
 *Function elimination.*
@@ -790,9 +802,9 @@ Function types are uncurried. `(T1, T2) -> R` is not the same type object as `(T
 ```
 
 #rule[
-  $ #sym.Delta; #sym.Theta, A_1, ..., A_n #sym.tack.r (T_1, ..., T_m) -> R " type" $
+  $ #sym.Delta; #sym.Theta, A_1, ..., A_n #sym.tack.r (T_1, ..., T_m) -> R : "Type" $
 ][
-  $ #sym.Delta; #sym.Theta #sym.tack.r #sym.forall A_1, ..., A_n "." (T_1, ..., T_m) -> R " type" $
+  $ #sym.Delta; #sym.Theta #sym.tack.r #sym.forall A_1, ..., A_n "." (T_1, ..., T_m) -> R : "Type" $
 ]
 
 *Generic function introduction.*
@@ -805,9 +817,12 @@ fn[A1, ..., An] f(x1 : T1, ..., xm : Tm) -> R { e } // generic function definiti
 A generic function literal or named generic function introduces a generic function value. The function body is checked under the declared type parameters and value parameters.
 
 #rule[
-  $ #sym.Delta; #sym.Theta, A_1, ..., A_n #sym.tack.r (T_1, ..., T_m) -> R " type" quad #sym.Gamma, x_1 : T_1, ..., x_m : T_m #sym.tack.r e : R $
+  $ display(cases(
+    #[$ #sym.Delta; #sym.Theta, A_1, ..., A_n #sym.tack.r (T_1, ..., T_m) -> R : "Type" $],
+    #[$ #sym.Gamma, x_1 : T_1, ..., x_m : T_m #sym.tack.r e : R $],
+  )) $
 ][
-  $ #sym.Gamma #sym.tack.r op("fn")([A_1, ..., A_n], (x_1 : T_1), ..., (x_m : T_m), R, e) : #sym.forall A_1, ..., A_n "." (T_1, ..., T_m) -> R $
+  $ #sym.Gamma #sym.tack.r "fn" "[" A_1, ..., A_n "]" (x_1 : T_1, ..., x_m : T_m) "->" R "{" e "}" : #sym.forall A_1, ..., A_n "." (T_1, ..., T_m) -> R $
 ]
 
 *Generic function elimination.*
@@ -819,7 +834,11 @@ f(a1, ..., am) // generic function call with inferred type arguments
 ```
 
 #rule[
-  $ #sym.Gamma #sym.tack.r f : #sym.forall A_1, ..., A_n "." (T_1, ..., T_m) -> R quad #sym.sigma = [U_1 #sym.slash A_1, ..., U_n #sym.slash A_n] quad #sym.Gamma #sym.tack.r a_1 : T_1 #sym.sigma quad ... quad #sym.Gamma #sym.tack.r a_m : T_m #sym.sigma $
+  $ display(cases(
+    #[$ #sym.Gamma #sym.tack.r f : #sym.forall A_1, ..., A_n "." (T_1, ..., T_m) -> R $],
+    #[$ #sym.sigma = [U_1 #sym.slash A_1, ..., U_n #sym.slash A_n] $],
+    #[$ #sym.forall i "." #sym.Gamma #sym.tack.r a_i : T_i #sym.sigma $],
+  )) $
 ][
   $ #sym.Gamma #sym.tack.r f(a_1, ..., a_m) : R #sym.sigma $
 ]
@@ -858,16 +877,20 @@ enum E[A1, ..., An] {
 }
 ```
 
-$ S #sym.arrow.r op("struct")(A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta $
+$ S #sym.arrow.r cal(S)(A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta $
 
-$ E #sym.arrow.r op("enum")(A_1, ..., A_n; v_1[B_(1,1) : K_(1,1), ..., B_(1,r_1) : K_(1,r_1)](P_1), ..., v_q[B_(q,1) : K_(q,1), ..., B_(q,r_q) : K_(q,r_q)](P_q)) #sym.in #sym.Delta $
+$ E #sym.arrow.r cal(E)(A_1, ..., A_n; v_1[B_(1,1) : K_(1,1), ..., B_(1,r_1) : K_(1,r_1)](P_1), ..., v_q[B_(q,1) : K_(q,1), ..., B_(q,r_q) : K_(q,r_q)](P_q)) #sym.in #sym.Delta $
 
 *Nominal formation.* A nominal type application is well-formed when its custom type constructor is visible, the number of type arguments matches the declaration's type parameters, and every type argument is well-formed.
 
 #rule[
-  $ C #sym.arrow.r D #sym.in #sym.Delta quad op("params")(D) = (A_1, ..., A_n) quad #sym.Delta; #sym.Theta #sym.tack.r T_1 " type" quad ... quad #sym.Delta; #sym.Theta #sym.tack.r T_n " type" $
+  $ display(cases(
+    #[$ C #sym.arrow.r D #sym.in #sym.Delta $],
+    #[$ pi(D) = (A_1, ..., A_n) $],
+    #[$ #sym.forall i "." #sym.Delta; #sym.Theta #sym.tack.r T_i : "Type" $],
+  )) $
 ][
-  $ #sym.Delta; #sym.Theta #sym.tack.r C[T_1, ..., T_n] " type" $
+  $ #sym.Delta; #sym.Theta #sym.tack.r C[T_1, ..., T_n] : "Type" $
 ]
 
 *Nominal type equality.* Nominal type equality compares constructor identity and then compares type arguments pairwise. There is no equality rule whose conclusion relates different nominal constructors.
@@ -887,9 +910,9 @@ Lane2 surface structs and enum variants with hidden type binders are modeled by 
 *Existential formation.*
 
 #rule[
-  $ #sym.Delta; #sym.Theta, B_1 : K_1, ..., B_r : K_r #sym.tack.r T " type" $
+  $ #sym.Delta; #sym.Theta, B_1 : K_1, ..., B_r : K_r #sym.tack.r T : "Type" $
 ][
-  $ #sym.Delta; #sym.Theta #sym.tack.r #sym.exists B_1 : K_1, ..., B_r : K_r "." T " type" $
+  $ #sym.Delta; #sym.Theta #sym.tack.r #sym.exists B_1 : K_1, ..., B_r : K_r "." T : "Type" $
 ]
 
 *Existential introduction.*
@@ -900,9 +923,13 @@ Hide::hide[Int](5)        // enum variant package
 ```
 
 #rule[
-  $ #sym.Delta; #sym.Theta #sym.tack.r U_1 : K_1 quad ... quad #sym.Delta; #sym.Theta #sym.tack.r U_r : K_r quad #sym.rho = [U_1 #sym.slash B_1, ..., U_r #sym.slash B_r] quad #sym.Gamma #sym.tack.r v : T #sym.rho $
+  $ display(cases(
+    #[$ #sym.forall p "." #sym.Delta; #sym.Theta #sym.tack.r U_p : K_p $],
+    #[$ #sym.rho = [U_1 #sym.slash B_1, ..., U_r #sym.slash B_r] $],
+    #[$ #sym.Gamma #sym.tack.r v : T #sym.rho $],
+  )) $
 ][
-  $ #sym.Gamma #sym.tack.r op("pack")([U_1, ..., U_r], v) : #sym.exists B_1 : K_1, ..., B_r : K_r "." T $
+  $ #sym.Gamma #sym.tack.r "pack" "[" U_1, ..., U_r "]" v : #sym.exists B_1 : K_1, ..., B_r : K_r "." T $
 ]
 
 *Existential elimination.*
@@ -915,9 +942,9 @@ match h {
 ```
 
 #rule[
-  $ #sym.Gamma #sym.tack.r e : #sym.exists B : K "." T quad #sym.Gamma, B : K, x : T #sym.tack.r b : R quad op("not-free")(B; R) $
+  $ #sym.Gamma #sym.tack.r e : #sym.exists B : K "." T quad #sym.Gamma, B : K, x : T #sym.tack.r b : R quad N(B; R) $
 ][
-  $ #sym.Gamma #sym.tack.r op("unpack")(e; B, x => b) : R $
+  $ #sym.Gamma #sym.tack.r "unpack" e "as" "[" B, x "]" "in" b : R $
 ]
 
 The side condition prevents an opened hidden type from escaping the scope that opened it. A value whose type mentions an opened hidden type must be repacked into another existential before leaving that scope.
@@ -936,14 +963,15 @@ struct S[A1, ..., An] {
 } // struct definition
 ```
 
-$ frac(
-  display(cases(
-    #[$ S #sym.arrow.r op("struct")(A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta $],
-    #[$ #sym.forall p "." #sym.Delta; A_1, ..., A_n #sym.tack.r K_p " kind" $],
-    #[$ #sym.forall i "." #sym.Delta; A_1, ..., A_n, B_1 : K_1, ..., B_r : K_r #sym.tack.r F_i " type" $],
-  )),
-  #sym.Delta #sym.tack.r op("struct-decl")(S; A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m) " declaration",
-) $
+#rule[
+  $ display(cases(
+    #[$ S #sym.arrow.r cal(S)(A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta $],
+    #[$ #sym.forall p "." #sym.Delta; A_1, ..., A_n #sym.tack.r K_p #sym.checkmark $],
+    #[$ #sym.forall i "." #sym.Delta; A_1, ..., A_n, B_1 : K_1, ..., B_r : K_r #sym.tack.r F_i : "Type" $],
+  )) $
+][
+  $ #sym.Delta #sym.tack.r "struct" S "[" A_1, ..., A_n "]" "{" B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m "}" #sym.checkmark $
+]
 
 *Struct introduction.* A qualified struct literal introduces a struct value. It must provide every declared type-member witness and every declared value field exactly once. Source order is not significant for named witnesses and fields; the rule below uses declaration order.
 
@@ -953,20 +981,21 @@ Hide::{ B1 = U1, val: e } // qualified struct literal with hidden type witness
 ```
 
 #rule[
-  $ S #sym.arrow.r op("struct")(A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta quad #sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n] $
+  $ S #sym.arrow.r cal(S)(A_1, ..., A_n; B_1 : K_1, ..., B_r : K_r; l_1 : F_1, ..., l_m : F_m) #sym.in #sym.Delta quad #sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n] $
 ][
-  $ op("struct-shape")(S[T_1, ..., T_n]) = (B_1 : K_1 #sym.sigma, ..., B_r : K_r #sym.sigma; l_1 : F_1 #sym.sigma, ..., l_m : F_m #sym.sigma) $
+  $ sigma_S(S[T_1, ..., T_n]) = (B_1 : K_1 #sym.sigma, ..., B_r : K_r #sym.sigma; l_1 : F_1 #sym.sigma, ..., l_m : F_m #sym.sigma) $
 ]
 
-$ frac(
-  display(cases(
-    #[$ op("struct-shape")(S[T_1, ..., T_n]) = (B_1 : K_1, ..., B_r : K_r; l_1 : Q_1, ..., l_m : Q_m) $],
+#rule[
+  $ display(cases(
+    #[$ sigma_S(S[T_1, ..., T_n]) = (B_1 : K_1, ..., B_r : K_r; l_1 : Q_1, ..., l_m : Q_m) $],
     #[$ #sym.forall p "." #sym.Delta; #sym.Theta #sym.tack.r U_p : K_p $],
     #[$ #sym.rho = [U_1 #sym.slash B_1, ..., U_r #sym.slash B_r] $],
     #[$ #sym.forall i "." #sym.Gamma #sym.tack.r e_i : Q_i #sym.rho $],
-  )),
-  #sym.Gamma #sym.tack.r op("struct-lit")(S[T_1, ..., T_n], B_1 = U_1, ..., B_r = U_r, l_1 = e_1, ..., l_m = e_m) : S[T_1, ..., T_n],
-) $
+  )) $
+][
+  $ #sym.Gamma #sym.tack.r S "[" T_1, ..., T_n "]" "::{" B_1 = U_1, ..., B_r = U_r, l_1 ":" e_1, ..., l_m ":" e_m "}" : S[T_1, ..., T_n] $
+]
 
 *Struct field elimination.* Field access eliminates a struct value by selecting a declared field type after substituting the struct type arguments. Field access alone does not open hidden type members. Therefore the selected field type must not mention unopened hidden type members.
 
@@ -975,7 +1004,7 @@ e.l // field access
 ```
 
 #rule[
-  $ #sym.Gamma #sym.tack.r e : S[T_1, ..., T_n] quad op("struct-shape")(S[T_1, ..., T_n]) = (B_1 : K_1, ..., B_r : K_r; ..., l : Q, ...) quad op("hidden-free")(Q) $
+  $ #sym.Gamma #sym.tack.r e : S[T_1, ..., T_n] quad sigma_S(S[T_1, ..., T_n]) = (B_1 : K_1, ..., B_r : K_r; ..., l : Q, ...) quad H(Q) $
 ][
   $ #sym.Gamma #sym.tack.r e.l : Q $
 ]
@@ -986,17 +1015,18 @@ e.l // field access
 let S::{ B1, ..., Br, l1: x1, ..., lm: xm } = e
 ```
 
-$ frac(
-  display(cases(
+#rule[
+  $ display(cases(
     #[$ #sym.Gamma #sym.tack.r e : S[T_1, ..., T_n] $],
-    #[$ op("struct-shape")(S[T_1, ..., T_n]) = (B_1 : K_1, ..., B_r : K_r; l_1 : Q_1, ..., l_m : Q_m) $],
+    #[$ sigma_S(S[T_1, ..., T_n]) = (B_1 : K_1, ..., B_r : K_r; l_1 : Q_1, ..., l_m : Q_m) $],
     #[$ #sym.Gamma, B_1 : K_1, ..., B_r : K_r, x_1 : Q_1, ..., x_m : Q_m #sym.tack.r b : R $],
-    #[$ op("not-free")(B_1, ..., B_r; R) $],
-  )),
-  #sym.Gamma #sym.tack.r op("struct-unpack")(e; B_1, ..., B_r; x_1, ..., x_m => b) : R,
-) $
+    #[$ N(B_1, ..., B_r; R) $],
+  )) $
+][
+  $ #sym.Gamma #sym.tack.r "let" S "::{" B_1, ..., B_r, l_1 ":" x_1, ..., l_m ":" x_m "}" "=" e ";" b : R $
+]
 
-Struct pattern syntax and contextual forwarding fields are specified in "Pattern Matching" and "Structs and Enums".
+Struct pattern syntax is specified in "Match Expressions and Patterns". Contextual forwarding fields are specified in "Scopes and Bindings".
 
 == Enum Types
 
@@ -1010,14 +1040,15 @@ enum E[A1, ..., An] {
 } // enum definition
 ```
 
-$ frac(
-  display(cases(
-    #[$ E #sym.arrow.r op("enum")(A_1, ..., A_n; v_j[B_(j,1) : K_(j,1), ..., B_(j,r_j) : K_(j,r_j)](P_(j,1), ..., P_(j,m_j))) #sym.in #sym.Delta $],
-    #[$ #sym.forall j,p "." #sym.Delta; A_1, ..., A_n #sym.tack.r K_(j,p) " kind" $],
-    #[$ #sym.forall j,k "." #sym.Delta; A_1, ..., A_n, B_(j,1) : K_(j,1), ..., B_(j,r_j) : K_(j,r_j) #sym.tack.r P_(j,k) " type" $],
-  )),
-  #sym.Delta #sym.tack.r op("enum-decl")(E; A_1, ..., A_n; v_j[B_(j,1) : K_(j,1), ..., B_(j,r_j) : K_(j,r_j)](P_j)) " declaration",
-) $
+#rule[
+  $ display(cases(
+    #[$ E #sym.arrow.r cal(E)(A_1, ..., A_n; v_j[B_(j,1) : K_(j,1), ..., B_(j,r_j) : K_(j,r_j)](P_(j,1), ..., P_(j,m_j))) #sym.in #sym.Delta $],
+    #[$ #sym.forall j,p "." #sym.Delta; A_1, ..., A_n #sym.tack.r K_(j,p) #sym.checkmark $],
+    #[$ #sym.forall j,k "." #sym.Delta; A_1, ..., A_n, B_(j,1) : K_(j,1), ..., B_(j,r_j) : K_(j,r_j) #sym.tack.r P_(j,k) : "Type" $],
+  )) $
+][
+  $ #sym.Delta #sym.tack.r "enum" E "[" A_1, ..., A_n "]" "{" v_j "[" B_(j,1), ..., B_(j,r_j) "]" (P_j) "}" #sym.checkmark $
+]
 
 *Variant constructor introduction.* Each declared variant constructor is an introduction form for values of its owning enum type. A variant constructor does not introduce a separate variant type. The payload expressions must match the declared variant payload types after substituting the enum type arguments.
 
@@ -1031,26 +1062,28 @@ For an enum declaration shape #math.inline[$D$], #math.inline[$D #sym.tack.r v :
 
 The judgment #math.inline[$#sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v [U_1, ..., U_r] #sym.arrow.r (Q_1, ..., Q_m)$] instantiates that payload sequence at the enum type arguments and the chosen hidden witnesses.
 
-$ frac(
-  display(cases(
+#rule[
+  $ display(cases(
     #[$ E #sym.arrow.r D #sym.in #sym.Delta $],
     #[$ D #sym.tack.r v : (B_1 : K_1, ..., B_r : K_r; P_1, ..., P_m) $],
-    #[$ op("params")(D) = (A_1, ..., A_n) $],
+    #[$ pi(D) = (A_1, ..., A_n) $],
     #[$ #sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n] $],
-    #[$ #sym.forall i "." #sym.Delta; #sym.Theta #sym.tack.r T_i " type" $],
+    #[$ #sym.forall i "." #sym.Delta; #sym.Theta #sym.tack.r T_i : "Type" $],
     #[$ #sym.forall p "." #sym.Delta; #sym.Theta #sym.tack.r U_p : K_p #sym.sigma $],
     #[$ #sym.rho = [U_1 #sym.slash B_1, ..., U_r #sym.slash B_r] $],
-  )),
-  #sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v[U_1, ..., U_r] #sym.arrow.r (P_1 #sym.sigma #sym.rho, ..., P_m #sym.sigma #sym.rho),
-) $
+  )) $
+][
+  $ #sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v[U_1, ..., U_r] #sym.arrow.r (P_1 #sym.sigma #sym.rho, ..., P_m #sym.sigma #sym.rho) $
+]
 
-$ frac(
-  display(cases(
+#rule[
+  $ display(cases(
     #[$ #sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v[U_1, ..., U_r] #sym.arrow.r (Q_1, ..., Q_m) $],
     #[$ #sym.forall k "." #sym.Gamma #sym.tack.r e_k : Q_k $],
-  )),
-  #sym.Gamma #sym.tack.r op("variant")(E[T_1, ..., T_n], v, [U_1, ..., U_r], e_1, ..., e_m) : E[T_1, ..., T_n],
-) $
+  )) $
+][
+  $ #sym.Gamma #sym.tack.r E "[" T_1, ..., T_n "]" "::" v "[" U_1, ..., U_r "]" (e_1, ..., e_m) : E[T_1, ..., T_n] $
+]
 
 An unqualified enum variant expression is typed by the same rule after name resolution has selected exactly one visible enum variant. Variant-local hidden witnesses may be written explicitly after the variant name or selected by local type inference when there is exactly one solution.
 
@@ -1064,29 +1097,31 @@ match e {
 }
 ```
 
-$ frac(
-  display(cases(
+#rule[
+  $ display(cases(
     #[$ E #sym.arrow.r D #sym.in #sym.Delta $],
-    #[$ op("params")(D) = (A_1, ..., A_n) $],
+    #[$ pi(D) = (A_1, ..., A_n) $],
     #[$ D #sym.tack.r v : (B_1 : K_1, ..., B_r : K_r; P_1, ..., P_m) $],
     #[$ #sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n] $],
     #[$ #sym.Gamma, B_1 : K_1 #sym.sigma, ..., B_r : K_r #sym.sigma, x_1 : P_1 #sym.sigma, ..., x_m : P_m #sym.sigma #sym.tack.r b : R $],
-    #[$ op("not-free")(B_1, ..., B_r; R) $],
-  )),
-  #sym.Gamma #sym.tack.r op("arm")(v(x_1, ..., x_m) => b) : op("arm-type")(E[T_1, ..., T_n], v, R),
-) $
+    #[$ N(B_1, ..., B_r; R) $],
+  )) $
+][
+  $ #sym.Gamma #sym.tack.r E "::" v "[" B_1, ..., B_r "]" (x_1, ..., x_m) #sym.arrow.r b : alpha(E[T_1, ..., T_n], v, R) $
+]
 
-$ frac(
-  display(cases(
+#rule[
+  $ display(cases(
     #[$ #sym.Gamma #sym.tack.r e : E[T_1, ..., T_n] $],
     #[$ E #sym.arrow.r D #sym.in #sym.Delta $],
-    #[$ D #sym.tack.r op("variants")(v_1, ..., v_q) $],
-    #[$ #sym.forall j "." #sym.Gamma #sym.tack.r a_j : op("arm-type")(E[T_1, ..., T_n], v_j, R) $],
-  )),
-  #sym.Gamma #sym.tack.r op("match")(e; a_1, ..., a_q) : R,
-) $
+    #[$ D #sym.tack.r nu(v_1, ..., v_q) $],
+    #[$ #sym.forall j "." #sym.Gamma #sym.tack.r a_j : alpha(E[T_1, ..., T_n], v_j, R) $],
+  )) $
+][
+  $ #sym.Gamma #sym.tack.r "match" e "{" a_1, ..., a_q "}" : R $
+]
 
-Pattern syntax and exhaustiveness diagnostics are specified in "Pattern Matching".
+Pattern syntax and exhaustiveness diagnostics are specified in "Match Expressions and Patterns".
 
 = Type Inference
 
@@ -1180,11 +1215,11 @@ Top-level forms include struct declarations, enum declarations, named function d
 
 == Struct Declarations
 
-Struct declarations use the grammar in "Structs and Enums".
+Struct declarations use the grammar in "Syntax and Grammar". Their nominal type rules are specified in "Type System".
 
 == Enum Declarations
 
-Enum declarations use the grammar in "Structs and Enums".
+Enum declarations use the grammar in "Syntax and Grammar". Their nominal type rules are specified in "Type System". Variant names may be lowercase or uppercase; capitalization has no semantic role.
 
 == Function Declarations
 
@@ -1300,9 +1335,9 @@ Offered value definitions must be named. They are not forward-visible and do not
     [$#sym.Omega #sym.tack.r A #sym.arrow.r s_V$], [contextual resolution by type],
     [$R #sym.tack.r d #sym.arrow.r R'$], [declaration resolution],
     [$R #sym.tack.r e #sym.arrow.r e'$], [expression-name resolution],
-    [$op("type-of")(s_V) = A$], [known type of a value symbol],
-    [$op("forward")(s_V)$], [contextual offers forwarded from a struct value],
-    [$op("variant")(s_T, v) = s_R$], [variant owned by an enum type symbol],
+    [$tau(s_V) = A$], [known type of a value symbol],
+    [$phi(s_V)$], [contextual offers forwarded from a struct value],
+    [$nu(s_T, v) = s_R$], [variant owned by an enum type symbol],
   )
 ]
 
@@ -1365,9 +1400,9 @@ Option::some(1) // Option is resolved as a type name
 ```
 
 #rule[
-  $ #sym.Delta #sym.tack.r E #sym.arrow.r s_T quad op("variant")(s_T, v) = s_R $
+  $ #sym.Delta #sym.tack.r E #sym.arrow.r s_T quad nu(s_T, v) = s_R $
 ][
-  $ R #sym.tack.r op("qualified-variant")(E, v) #sym.arrow.r s_R $
+  $ R #sym.tack.r E "::" v #sym.arrow.r s_R $
 ]
 
 == Top-Level Scope
@@ -1381,9 +1416,9 @@ fn f(x : T) -> T { x }
 ```
 
 #rule[
-  $ op("types")(d_1, ..., d_n) = #sym.Delta quad op("functions")(d_1, ..., d_n) = #sym.Gamma $
+  $ cal(T)(d_1, ..., d_n) = #sym.Delta quad cal(F)(d_1, ..., d_n) = #sym.Gamma $
 ][
-  $ op("top-recursive")(d_1, ..., d_n) = (#sym.Delta, #sym.Gamma) $
+  $ cal(R)(d_1, ..., d_n) #sym.arrow.r (#sym.Delta, #sym.Gamma) $
 ]
 
 Top-level value definitions and top-level offered value definitions are resolved in source order. A top-level initializer may refer only to values and contextual offers available at that declaration point. A top-level function body is resolved after the complete top-level function, value, and contextual offer environments are known.
@@ -1396,7 +1431,7 @@ offer y_ops : Add[Int] = Add::{ add: int_add }
 #rule[
   $ R_i ";" K_i #sym.tack.r e_i #sym.arrow.r e_i' quad R_(i+1) = R_i, x_i #sym.arrow.r s_i $
 ][
-  $ R_i #sym.tack.r op("top-let")(x_i, T_i, e_i) #sym.arrow.r R_(i+1) $
+  $ R_i #sym.tack.r "let" x_i : T_i = e_i #sym.arrow.r R_(i+1) $
 ]
 
 An offered value definition checks its initializer with the current environment, defines the named value, and offers that value from the declaration point forward.
@@ -1406,9 +1441,9 @@ offer ops : Add[Int] = Add::{ add: int_add }
 ```
 
 #rule[
-  $ R_i ";" K_i #sym.tack.r e #sym.arrow.r e' quad R_(i+1) = R_i, x #sym.arrow.r s_V, op("offer")(s_V) $
+  $ R_i ";" K_i #sym.tack.r e #sym.arrow.r e' quad R_(i+1) = R_i, x #sym.arrow.r s_V, omega(s_V) $
 ][
-  $ R_i #sym.tack.r op("top-offer-value")(x, T, e) #sym.arrow.r R_(i+1) $
+  $ R_i #sym.tack.r "offer" x : T = e #sym.arrow.r R_(i+1) $
 ]
 
 Top-level value initializers are checked only with contextual offers available earlier in source order. Top-level function bodies are checked with the complete top-level contextual offer environment.
@@ -1429,7 +1464,7 @@ Local `let`, local named `fn`, and local offered value definitions are sequentia
 #rule[
   $ R_i ";" K_i #sym.tack.r e_i #sym.arrow.r e_i' quad R_(i+1) = R_i, x_i #sym.arrow.r s_i $
 ][
-  $ R_i #sym.tack.r op("local-let")(x_i, e_i) #sym.arrow.r R_(i+1) $
+  $ R_i #sym.tack.r "let" x_i = e_i #sym.arrow.r R_(i+1) $
 ]
 
 A local pattern `let` is sequential and may introduce both value binders and type binders. It is the source form used to open existential structs over the remainder of the block.
@@ -1442,15 +1477,19 @@ A local pattern `let` is sequential and may introduce both value binders and typ
 ```
 
 #rule[
-  $ R_i ";" K_i #sym.tack.r e_i #sym.arrow.r e_i' quad op("pattern-binders")(p, e_i') = (B_1, ..., B_r; x_1 #sym.arrow.r s_1, ..., x_m #sym.arrow.r s_m) quad R_(i+1) = R_i, B_1, ..., B_r, x_1 #sym.arrow.r s_1, ..., x_m #sym.arrow.r s_m $
+  $ display(cases(
+    #[$ R_i ";" K_i #sym.tack.r e_i #sym.arrow.r e_i' $],
+    #[$ beta(p, e_i') = (B_1, ..., B_r; x_1 #sym.arrow.r s_1, ..., x_m #sym.arrow.r s_m) $],
+    #[$ R_(i+1) = R_i, B_1, ..., B_r, x_1 #sym.arrow.r s_1, ..., x_m #sym.arrow.r s_m $],
+  )) $
 ][
-  $ R_i #sym.tack.r op("local-pattern-let")(p, e_i) #sym.arrow.r R_(i+1) $
+  $ R_i #sym.tack.r "let" p = e_i #sym.arrow.r R_(i+1) $
 ]
 
 #rule[
   $ R_(i+1) = R_i, f #sym.arrow.r s_f quad R_(i+1) ";" K #sym.tack.r b #sym.arrow.r b' $
 ][
-  $ R_i #sym.tack.r op("local-fn")(f, U, b) #sym.arrow.r R_(i+1) $
+  $ R_i #sym.tack.r "fn" f : U "{" b "}" #sym.arrow.r R_(i+1) $
 ]
 
 Local value names may shadow earlier value names from outer layers. Ordinary value bindings in the same layer must have distinct names.
@@ -1478,9 +1517,9 @@ offer int_add_ops : Add[Int] = Add::{ add: int_add }
 ```
 
 #rule[
-  $ #sym.Gamma #sym.tack.r x #sym.arrow.r s_V quad op("type-of")(s_V) = A $
+  $ #sym.Gamma #sym.tack.r x #sym.arrow.r s_V quad tau(s_V) = A $
 ][
-  $ (#sym.Delta, #sym.Gamma, #sym.Omega) #sym.tack.r op("offer-value")(x) #sym.arrow.r (A #sym.arrow.r s_V), op("forward")(s_V) $
+  $ (#sym.Delta, #sym.Gamma, #sym.Omega) #sym.tack.r "offer" x #sym.arrow.r (A #sym.arrow.r s_V), phi(s_V) $
 ]
 
 A contextual offer affects only Contextual Resolution. It does not expose fields as unqualified names.
@@ -1501,19 +1540,19 @@ offer right_add : Add[Int] = Add::{ add: alternate_int_add }
 #rule[
   $ #sym.Omega #sym.tack.r A #sym.arrow.r (s_1, ..., s_n) quad n = 1 $
 ][
-  $ #sym.Omega #sym.tack.r op("contextual")(A) #sym.arrow.r s_1 $
+  $ #sym.Omega #sym.tack.r omega(A) #sym.arrow.r s_1 $
 ]
 
 #rule[
   $ #sym.Omega #sym.tack.r A #sym.arrow.r () $
 ][
-  $ #sym.Omega #sym.tack.r op("contextual")(A) #sym.arrow.r op("error")("missing-offer") $
+  $ #sym.Omega #sym.tack.r omega(A) #sym.arrow.r epsilon_m $
 ]
 
 #rule[
   $ #sym.Omega #sym.tack.r A #sym.arrow.r (s_1, ..., s_n) quad n > 1 $
 ][
-  $ #sym.Omega #sym.tack.r op("contextual")(A) #sym.arrow.r op("error")("ambiguous-offer") $
+  $ #sym.Omega #sym.tack.r omega(A) #sym.arrow.r epsilon_a $
 ]
 
 Repeating the same offer identity is semantically idempotent but should produce a warning. Contextual offer deduplication uses offer identity, not runtime value equality.
@@ -1536,9 +1575,9 @@ offer int_compare_ops : Compare[Int] = Compare::{ equal_impl, less: int_less }
 Offering `int_compare_ops : Compare[Int]` also offers `int_compare_ops.equal_impl : Equal[Int]`. Forwarding uses normal nominal field typing of the containing value. Recursive forwarding must detect cycles.
 
 #rule[
-  $ op("type-of")(s_V) = S[T_1, ..., T_n] quad op("offered-fields")(S[T_1, ..., T_n]) = (l_1 : A_1, ..., l_m : A_m) $
+  $ tau(s_V) = S[T_1, ..., T_n] quad phi_S(S[T_1, ..., T_n]) = (l_1 : A_1, ..., l_m : A_m) $
 ][
-  $ op("forward")(s_V) = (A_1 #sym.arrow.r s_V.l_1, ..., A_m #sym.arrow.r s_V.l_m), op("forward")(s_V.l_1), ..., op("forward")(s_V.l_m) $
+  $ phi(s_V) = (A_1 #sym.arrow.r s_V.l_1, ..., A_m #sym.arrow.r s_V.l_m), phi(s_V.l_1), ..., phi(s_V.l_m) $
 ]
 
 == Direct Named Calls and Contextual Arguments
@@ -1577,9 +1616,9 @@ some(1)
 ```
 
 #rule[
-  $ op("variants-named")(#sym.Delta, v) = (s_R) $
+  $ nu_v(#sym.Delta, v) = (s_R) $
 ][
-  $ R ";" K #sym.tack.r op("variant-ref")(v) #sym.arrow.r s_R $
+  $ R ";" K #sym.tack.r v #sym.arrow.r s_R $
 ]
 
 Field access first resolves and checks its base as a unique value, then selects a field owned by the base struct type.
@@ -1589,9 +1628,9 @@ ops.op_add
 ```
 
 #rule[
-  $ R ";" K #sym.tack.r x #sym.arrow.r s_V quad op("type-of")(s_V) = S[T_1, ..., T_n] quad op("field")(S, l) = s_F $
+  $ R ";" K #sym.tack.r x #sym.arrow.r s_V quad tau(s_V) = S[T_1, ..., T_n] quad mu(S, l) = s_F $
 ][
-  $ R ";" K #sym.tack.r op("field-access")(x, l) #sym.arrow.r s_F $
+  $ R ";" K #sym.tack.r x.l #sym.arrow.r s_F $
 ]
 
 Operator aliases first map to fixed ordinary operation names, then elaborate to direct named calls when the operation name resolves to a function definition symbol. `&&` and `||` additionally thunk the right operand before the call is checked.
@@ -1602,14 +1641,46 @@ a && b // elaborates to op_and(a, fn() { b })
 ```
 
 #rule[
-  $ op("operator-name")(op) = x quad #sym.Gamma #sym.tack.r x #sym.arrow.r s_V $
+  $ eta(o) = x quad #sym.Gamma #sym.tack.r x #sym.arrow.r s_V $
 ][
-  $ R ";" K #sym.tack.r op("operator")(op) #sym.arrow.r s_V $
+  $ R ";" K #sym.tack.r o #sym.arrow.r s_V $
 ]
 
 = Expressions
 
 Expressions compute values. Lane2 v1 is expression-oriented and has no expression statements.
+
+This chapter specifies source expression elaboration into Buslane. The appropriate semantic object here is an elaboration judgment, not a denotational semantics: source expressions contain conveniences that do not exist in Buslane, including `if`, field access, pipeline, source struct syntax, source enum syntax, operators, contextual arguments, and unsafe builtin syntax. Evaluation is specified only for the resulting Buslane expression in "Buslane Core Language".
+
+== Notations
+
+#figure(caption: [Expression elaboration notations])[
+  #table(
+    columns: (auto, 1fr),
+    [$L$], [elaboration environment],
+    [$M$], [Buslane metadata registry produced by declarations],
+    [$#sym.Theta$], [visible type binders],
+    [$#sym.Gamma$], [visible value binders],
+    [$e, a, p$], [source expression, source match arm, and source pattern],
+    [$b, c, h$], [Buslane expression],
+    [$T, U, R$], [Buslane type],
+    [$l$], [source literal or source field name],
+    [$o$], [source operator token],
+    [$K$], [Buslane data-constructor identity],
+    [$x, y, f$], [Buslane value identity],
+    [$L; #sym.Theta; #sym.Gamma #sym.tack.r e #sym.arrow.r b : T$], [source expression elaboration],
+    [$L; #sym.Theta; #sym.Gamma #sym.tack.r a #sym.arrow.r A : alpha(x, T, R)$], [source match-arm elaboration],
+    [$L #sym.tack.r I_1, ..., I_n; e #sym.arrow.r b : T$], [block-item sequence elaboration],
+    [$I_L(x) = y$], [source value symbol $x$ maps to Buslane value identity $y$],
+    [$F_L(S, l) = f$], [source field selector for struct $S$ and field $l$],
+    [$K_L(S) = K$], [Buslane data constructor generated for source struct $S$],
+    [$K_L(E, v) = K$], [Buslane data constructor generated for source enum variant $E "::" v$],
+    [$O_L(o) = f$], [source operator token maps to an operation function identity],
+    [$X_L(s, T) = f$], [builtin string $s$ at expected type $T$ maps to an external value identity],
+  )
+]
+
+The elaboration relation is defined after parsing, name resolution, local type inference, and contextual resolution. Therefore every rule below receives resolved value identities, selected type arguments, selected contextual arguments, and checked result types as inputs. Elaboration does not perform overload search or evaluation.
 
 == Blocks
 
@@ -1644,6 +1715,41 @@ A block does not contain expression statements. This is invalid:
 
 An empty block is invalid. Write `()` explicitly when a `Unit` value is required.
 
+Block elaboration turns local items into nested Buslane binders. Contextual offers affect elaboration of later source expressions, but they do not appear as Buslane operations.
+
+#tapl-rule("E-BlockDone")[
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r e #sym.arrow.r b : T $
+][
+  $ L #sym.tack.r ; e #sym.arrow.r b : T $
+]
+
+#tapl-rule("E-BlockLet")[
+  $ display(cases(
+    #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r e_1 #sym.arrow.r b_1 : T_1 $],
+    #[$ L #sym.tack.r I_2, ..., I_n; e #sym.arrow.r b_2 : T_2 $],
+  )) $
+][
+  $ L #sym.tack.r "let" x = e_1, I_2, ..., I_n; e #sym.arrow.r "let" x = b_1 "in" b_2 : T_2 $
+]
+
+#tapl-rule("E-BlockOffer")[
+  $ display(cases(
+    #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r e_1 #sym.arrow.r b_1 : T_1 $],
+    #[$ L, omega(x : T_1) #sym.tack.r I_2, ..., I_n; e #sym.arrow.r b_2 : T_2 $],
+  )) $
+][
+  $ L #sym.tack.r "offer" x : T_1 = e_1, I_2, ..., I_n; e #sym.arrow.r "let" x = b_1 "in" b_2 : T_2 $
+]
+
+#tapl-rule("E-BlockFn")[
+  $ display(cases(
+    #[$ L; #sym.Theta; #sym.Gamma, f #sym.tack.r h #sym.arrow.r b_1 : T_1 $],
+    #[$ L #sym.tack.r I_2, ..., I_n; e #sym.arrow.r b_2 : T_2 $],
+  )) $
+][
+  $ L #sym.tack.r "fn" f = h, I_2, ..., I_n; e #sym.arrow.r "letrec" (f = b_1) "in" b_2 : T_2 $
+]
+
 == Conditional Expressions
 
 `if` is an expression:
@@ -1659,6 +1765,19 @@ if condition {
 The `else` branch is mandatory.
 
 Both branches must have the same type.
+
+`if` elaborates to a Buslane match over `Bool`.
+
+#tapl-rule("E-If")[
+  $ display(cases(
+    #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r c #sym.arrow.r b_c : "Bool" $],
+    #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r e_1 #sym.arrow.r b_1 : T $],
+    #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r e_2 #sym.arrow.r b_2 : T $],
+    #[$ M #sym.tack.r x_c : "Bool" $],
+  )) $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r "if" c "then" e_1 "else" e_2 #sym.arrow.r "match" b_c "as" x_c "->" T "{" "true" #sym.arrow.r b_1, "false" #sym.arrow.r b_2 "}" : T $
+]
 
 == Calls, Field Access, and Pipeline
 
@@ -1721,7 +1840,55 @@ value |> f(_, y)
 
 Placeholders are not supported.
 
-= Structs and Enums
+Resolved value references elaborate to Buslane value identities.
+
+#tapl-rule("E-Value")[
+  $ I_L(x) = y quad M #sym.tack.r y : T $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r x #sym.arrow.r y : T $
+]
+
+Function calls elaborate to Buslane calls after local type inference and contextual resolution have supplied all type arguments and value arguments.
+
+#tapl-rule("E-Call")[
+  $ display(cases(
+    #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r f #sym.arrow.r b_f : (T_1, ..., T_n) -> R $],
+    #[$ #sym.forall i "." L; #sym.Theta; #sym.Gamma #sym.tack.r e_i #sym.arrow.r b_i : T_i $],
+  )) $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r f(e_1, ..., e_n) #sym.arrow.r b_f(b_1, ..., b_n) : R $
+]
+
+#tapl-rule("E-TypeCall")[
+  $ display(cases(
+    #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r f #sym.arrow.r b_f : #sym.forall A_1, ..., A_n "." T $],
+    #[$ #sym.forall i "." M; #sym.Theta #sym.tack.r U_i : "Type" $],
+  )) $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r f[U_1, ..., U_n] #sym.arrow.r b_f[U_1, ..., U_n] : T[U_1 #sym.slash A_1, ..., U_n #sym.slash A_n] $
+]
+
+Field access elaborates to a generated selector function call. Buslane has no field-access expression.
+
+#tapl-rule("E-Field")[
+  $ display(cases(
+    #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r e #sym.arrow.r b : S[T_1, ..., T_n] $],
+    #[$ F_L(S, l) = f $],
+    #[$ M #sym.tack.r f : (S[T_1, ..., T_n]) -> R $],
+  )) $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r e "." l #sym.arrow.r f(b) : R $
+]
+
+Pipeline is elaborated by inserting the left expression as the first positional argument of the right call form.
+
+#tapl-rule("E-Pipeline")[
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r f(e_0, e_1, ..., e_n) #sym.arrow.r b : T $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r e_0 "|>" f(e_1, ..., e_n) #sym.arrow.r b : T $
+]
+
+== Struct and Enum Expressions
 
 Struct literals are qualified:
 
@@ -1741,38 +1908,15 @@ This is equivalent to:
 let p : Point = Point::{ x: x, y: y }
 ```
 
-Struct literals must provide every field exactly once.
-
-Structs may declare hidden type members before value fields:
-
-```lane2
-struct Hide {
-  type T : Type
-  val : T
-}
-```
-
-Hidden type members are not ordinary value fields and are not accessed with dot syntax. Construction supplies type-member witnesses with `=` and value fields with `:`:
+Struct literals must provide every value field exactly once. Structs with hidden type members must also provide every type-member witness.
 
 ```lane2
 let h : Hide = Hide::{ T = Int, val: 5 }
 ```
 
-Consumers do not see the chosen witness type until a struct pattern opens it:
+Type-member witnesses use `=`. Value fields use `:`.
 
-```lane2
-let Hide::{ T, val } = h
-```
-
-After this local item, `T : Type` and `val : T` are available for the remaining local scope. The opened type `T` must not escape that scope unless it is packed again into an existential value.
-
-Type members may be ignored with `_` in the type-member position of a struct pattern:
-
-```lane2
-let Hide::{ _, val } = h
-```
-
-The following are not supported:
+The following struct expression forms are not supported:
 
 - anonymous record literals,
 - default fields,
@@ -1790,13 +1934,7 @@ V1 has no field visibility modifiers. Every struct field is accessible wherever 
 
 If a field type mentions an unopened hidden type member, field access is invalid until a struct pattern has opened that hidden type.
 
-== Enums
-
-Enum variants are scoped to their enum.
-
-Variant names may be lowercase or uppercase. Capitalization has no semantic role.
-
-Payloadless variants are values and are written without call parentheses:
+Enum variants are scoped to their enum. Payloadless variants are values and are written without call parentheses:
 
 ```lane2
 let x : Option[Int] = Option::none
@@ -1817,7 +1955,9 @@ enum Expr {
 }
 ```
 
-An enum variant may declare hidden type binders that are chosen at construction and opened by matching the variant pattern:
+Labeled variant payloads are not part of v1. Named product data must be represented with a struct.
+
+An enum variant may declare hidden type binders that are chosen at construction:
 
 ```lane2
 enum Hide {
@@ -1825,27 +1965,6 @@ enum Hide {
 }
 
 let h : Hide = Hide::hide[Int](5)
-
-match h {
-  Hide::hide[T](val) => body
-}
-```
-
-Inside the arm, `T : Type` and `val : T` are available. The opened type `T` is abstract and must not escape the arm result type unless it is packed again into an existential value.
-
-Labeled variant payloads are not part of v1. Named product data must be represented with a struct:
-
-```lane2
-struct Node[A] {
-  left : Tree[A]
-  value : A
-  right : Tree[A]
-}
-
-enum Tree[A] {
-  leaf(A)
-  node(Node[A])
-}
 ```
 
 In expressions, unqualified variants are allowed when unambiguous:
@@ -1860,33 +1979,35 @@ If more than one visible enum has a variant named `some`, the unqualified expres
 let x : Option[Int] = Option::some(1)
 ```
 
-In patterns, variants must always be qualified.
+Source struct literals elaborate to calls of the generated Buslane data constructor for the struct. Source field order is erased; Buslane receives payloads in declaration order.
 
-== Contextual Forwarding Fields
+#tapl-rule("E-Struct")[
+  $ display(cases(
+    #[$ p = S "::{" B_1 = U_1, ..., B_r = U_r, l_1 ":" e_1, ..., l_m ":" e_m "}" $],
+    #[$ K_L(S) = K $],
+    #[$ sigma_S(S[T_1, ..., T_n]) = (B_1 : K_1, ..., B_r : K_r; l_1 : Q_1, ..., l_m : Q_m) $],
+    #[$ #sym.forall i "." L; #sym.Theta; #sym.Gamma #sym.tack.r e_i #sym.arrow.r b_i : Q_i[U_1 #sym.slash B_1, ..., U_r #sym.slash B_r] $],
+    #[$ c = K[T_1, ..., T_n; U_1, ..., U_r](b_1, ..., b_m) $],
+  )) $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r p #sym.arrow.r c : S[T_1, ..., T_n] $
+]
 
-A struct field may be marked with `offer`:
+Source enum variant expressions elaborate to calls of the selected Buslane data constructor. Qualified and unqualified source forms use the same rule after name resolution selects the variant.
 
-```lane2
-struct Compare[T] {
-  offer equal_impl : Equal[T]
-  less : (T, T) -> Bool
-  less_eq : (T, T) -> Bool
-  greater : (T, T) -> Bool
-  greater_eq : (T, T) -> Bool
-}
-```
+#tapl-rule("E-Variant")[
+  $ display(cases(
+    #[$ p = E "::" v "[" U_1, ..., U_r "]" (e_1, ..., e_m) $],
+    #[$ K_L(E, v) = K $],
+    #[$ #sym.Delta; #sym.Theta #sym.tack.r E[T_1, ..., T_n] "::" v[U_1, ..., U_r] #sym.arrow.r (Q_1, ..., Q_m) $],
+    #[$ #sym.forall i "." L; #sym.Theta; #sym.Gamma #sym.tack.r e_i #sym.arrow.r b_i : Q_i $],
+    #[$ c = K[T_1, ..., T_n; U_1, ..., U_r](b_1, ..., b_m) $],
+  )) $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r p #sym.arrow.r c : E[T_1, ..., T_n] $
+]
 
-When a value of this struct type is offered, contextual forwarding fields are also offered. The forwarded field type is obtained by ordinary nominal field typing of the containing value.
-
-```lane2
-offer int_compare_ops : Compare[Int] = Compare::{ equal_impl, less: int_less }
-```
-
-If `int_compare_ops : Compare[Int]`, the offered value definition contributes both `Compare[Int]` and `Equal[Int]` offers: the latter is the field path `int_compare_ops.equal_impl`.
-
-Contextual forwarding fields do not expose unqualified field names. They affect only Contextual Resolution. Forwarding is recursive and must detect cycles.
-
-= Pattern Matching
+== Match Expressions and Patterns
 
 `match` is an expression:
 
@@ -1954,7 +2075,59 @@ Hidden type binders opened by enum or struct patterns are scoped to the pattern 
 
 Rest patterns, spread patterns, guards, or-patterns, as-patterns, and `is` pattern expressions are not supported in v1.
 
-= Operators
+Source match elaborates to Buslane match. Every source pattern is lowered to one Buslane alternative form. Struct patterns are data-constructor alternatives for the generated struct constructor.
+
+#tapl-rule("E-Match")[
+  $ display(cases(
+    #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r e #sym.arrow.r b : T $],
+    #[$ M #sym.tack.r x_m : T $],
+    #[$ #sym.forall i "." L; #sym.Theta; #sym.Gamma #sym.tack.r a_i #sym.arrow.r A_i : alpha(x_m, T, R) $],
+  )) $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r "match" e "{" a_1, ..., a_n "}" #sym.arrow.r "match" b "as" x_m "->" R "{" A_1, ..., A_n "}" : R $
+]
+
+#tapl-rule("E-ArmWildcard")[
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r e #sym.arrow.r b : R $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r "_" "=>" e #sym.arrow.r "_" #sym.arrow.r b : alpha(x_m, T, R) $
+]
+
+#tapl-rule("E-ArmVariable")[
+  $ L; #sym.Theta; #sym.Gamma, y #sym.tack.r e #sym.arrow.r b : R $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r y "=>" e #sym.arrow.r "_" #sym.arrow.r "let" y = x_m "in" b : alpha(x_m, T, R) $
+]
+
+#tapl-rule("E-ArmLiteral")[
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r e #sym.arrow.r b : R $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r l "=>" e #sym.arrow.r l #sym.arrow.r b : alpha(x_m, T, R) $
+]
+
+#tapl-rule("E-ArmVariant")[
+  $ display(cases(
+    #[$ p = E "::" v "[" B_1, ..., B_r "]" (y_1, ..., y_m) $],
+    #[$ K_L(E, v) = K $],
+    #[$ L; #sym.Theta, B_1, ..., B_r; #sym.Gamma, y_1, ..., y_m #sym.tack.r e #sym.arrow.r b : R $],
+    #[$ A = K[B_1, ..., B_r](y_1, ..., y_m) #sym.arrow.r b $],
+  )) $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r p "=>" e #sym.arrow.r A : alpha(x_m, T, R) $
+]
+
+#tapl-rule("E-ArmStruct")[
+  $ display(cases(
+    #[$ p = S "::{" B_1, ..., B_r, l_1 ":" y_1, ..., l_m ":" y_m "}" $],
+    #[$ K_L(S) = K $],
+    #[$ L; #sym.Theta, B_1, ..., B_r; #sym.Gamma, y_1, ..., y_m #sym.tack.r e #sym.arrow.r b : R $],
+    #[$ A = K[B_1, ..., B_r](y_1, ..., y_m) #sym.arrow.r b $],
+  )) $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r p "=>" e #sym.arrow.r A : alpha(x_m, T, R) $
+]
+
+== Operator Expressions
 
 Operators are aliases for fixed ordinary operation names.
 
@@ -1996,13 +2169,586 @@ Ordinary calls to `op_and` and `op_or` are strict. Only the `&&` and `||` operat
 
 Concrete expression precedence, associativity, and unary/binary disambiguation follow the MoonBit parser reference where Lane2 has not deliberately removed a feature.
 
-= Core Language and ANF
+Strict operators elaborate to ordinary direct named calls. Contextual parameters are already supplied by Contextual Resolution before the call rule applies.
 
-Buslane is the Lane2 Core Language. It is a typed expression-tree language produced after source elaboration and before administrative normalization.
+#tapl-rule("E-Operator")[
+  $ display(cases(
+    #[$ O_L(o) = f $],
+    #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r f(e_1, e_2) #sym.arrow.r b : T $],
+  )) $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r e_1 o e_2 #sym.arrow.r b : T $
+]
 
-A Buslane program contains nominal type declarations, typed function declarations, typed value declarations, and typed expressions. It does not contain source-only syntax such as pipeline expressions, operator tokens, contextual offer lookup, omitted contextual arguments, field punning, or unresolved names. Buslane expressions preserve ordinary expression structure: calls, type applications, conditionals, matches, field access, nominal construction, function values, type lambdas, literals, and unsafe builtins are represented directly.
+Lazy boolean operators elaborate to operation calls whose right operand is a nullary Buslane function.
 
-ANF is a later intermediate representation, not the Core Language. ANF preserves Buslane typing and evaluation behavior while introducing atom, right-hand-side, binding, and temporary structure to make evaluation order explicit. A conforming implementation may evaluate Buslane directly or may lower Buslane to ANF first, but the observable behavior of safe programs must be the same.
+#tapl-rule("E-LazyOperator")[
+  $ display(cases(
+    #[$ O_L(o) = f $],
+    #[$ o #sym.in ("&&", "||") $],
+    #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r e_1 #sym.arrow.r b_1 : "Bool" $],
+    #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r e_2 #sym.arrow.r b_2 : "Bool" $],
+  )) $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r e_1 o e_2 #sym.arrow.r f(b_1, "fn" () "->" "Bool" "{" b_2 "}") : "Bool" $
+]
+
+Unary operators elaborate to ordinary direct named calls with one argument.
+
+#tapl-rule("E-UnaryOperator")[
+  $ display(cases(
+    #[$ O_L(o) = f $],
+    #[$ L; #sym.Theta; #sym.Gamma #sym.tack.r f(e) #sym.arrow.r b : T $],
+  )) $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r o e #sym.arrow.r b : T $
+]
+
+Unsafe builtin expressions elaborate to external Buslane value identities selected by the expected type.
+
+#tapl-rule("E-Builtin")[
+  $ X_L(s, T) = f quad M_V(f) = (kappa_e, T) $
+][
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r "builtin" "(" s ")" #sym.arrow.r f : T $
+]
+
+= Buslane Core Language
+
+Buslane is the Lane2 Core Language. It is a typed expression-tree language produced after Checked Source and before administrative normalization. ANF is a later intermediate representation, not the Core Language.
+
+Buslane owns its own type objects, identities, metadata, expressions, literals, diagnostics, and verifier rules. Buslane does not depend on source syntax, source names, source spans, checked-source AST nodes, compiler-front-end symbol tables, or compiler-front-end type objects.
+
+== Syntax
+
+This section specifies Buslane as an abstract language. Concrete implementations may choose different record names, map layouts, or arena representations, but they must preserve the abstract structure and judgments specified here.
+
+#figure(caption: [Buslane notation])[
+  #table(
+    columns: (auto, 1fr),
+    [$M$], [Buslane metadata registry],
+    [$G$], [top-level runtime environment],
+    [$x, y, f$], [Buslane value identities],
+    [$C$], [Buslane type constructor identity],
+    [$A, B$], [Buslane type parameter identities],
+    [$K$], [Buslane data-constructor identity],
+    [$T, U, R$], [Buslane types],
+    [$e, c, a, b$], [Buslane expressions],
+    [$w$], [Buslane runtime values],
+    [$r$], [recursive binding group],
+    [$l$], [primitive literal],
+    [$cal(D)(G)$], [domain of a runtime environment],
+    [$M #sym.tack.r x : T$], [metadata gives value identity $x$ type $T$],
+    [$M #sym.tack.r A : K$], [metadata gives type parameter identity $A$ kind $K$],
+    [$M; #sym.Theta; #sym.Gamma #sym.tack.r e : T$], [Buslane expression typing],
+    [$G #sym.tack.r e #sym.arrow.r e'$], [one small-step evaluation step],
+    [$e[T #sym.slash A]$], [capture-avoiding type substitution],
+    [$e[w #sym.slash x]$], [capture-avoiding value substitution],
+    [$tau_C(A_1, ..., A_n; K_1, ..., K_m)$], [type-constructor metadata shape],
+    [$tau_K(C; B_1, ..., B_r; P_1, ..., P_m)$], [data-constructor metadata shape],
+    [$pi_K(M, K, T_1, ..., T_n; U_1, ..., U_r) = (Q_1, ..., Q_m)$], [instantiated data-constructor payload sequence],
+    [$alpha(x, T, R)$], [alternative type for scrutinee binder $x$, scrutinee type $T$, and result type $R$],
+    [$chi(M, T, a_1, ..., a_n)$], [exhaustive alternative sequence],
+    [$tau_l(l)$], [primitive literal type],
+    [$rho_r(r)$], [recursive-group substitution],
+    [$delta_l(l, a_1, ..., a_n) = b$], [literal alternative selection],
+    [$delta_K(K, a_1, ..., a_n) = A$], [data-constructor alternative selection],
+    [$delta_0(a_1, ..., a_n) = b$], [default alternative selection],
+    [$nu_0(w, a_1, ..., a_n)$], [no literal or data alternative applies to value $w$],
+  )
+]
+
+*Program form.*
+
+#formal-box[
+  $ P ::= (M; d_1, ..., d_n) $
+]
+
+The metadata component #math.inline[$M$] contains all Buslane type, type-parameter, value, and data-constructor metadata. The top-level sequence #math.inline[$d_1, ..., d_n$] preserves top-level value initialization order.
+
+Buslane metadata is not required to be dead-code-free. A program may contain well-formed metadata entries that are not referenced by the top-level term sequence.
+
+*Identities.*
+
+#formal-box[
+  $ C #sym.in I_C quad A, B #sym.in I_A quad x, y, f #sym.in I_x quad K #sym.in I_K $
+]
+
+Buslane has no field identity, source variant identity, source name, or display-name identity. Source structs and enum variants are lowered to nominal data constructors before Buslane. Source field access is lowered to ordinary selector function calls before Buslane.
+
+*Metadata.*
+
+#formal-box[
+  $ display(cases(
+    #[$ M = (M_V, M_A, M_C, M_K) $],
+    #[$ M_V(x) = (kappa_V, T) $],
+    #[$ kappa_V ::= kappa_f | kappa_v | kappa_e | kappa_p | kappa_l | kappa_m $],
+    #[$ M_A(A) = K $],
+    #[$ M_C(C) = (A_1, ..., A_n; K_1, ..., K_m) $],
+    #[$ M_K(K) = (C; B_1, ..., B_r; P_1, ..., P_m) $],
+  )) $
+]
+
+#math.inline[$kappa_V$] is a Buslane binding category. It is not source syntax, visibility, source origin, or generated/source-written status.
+
+In #math.inline[$M_K(K)$], #math.inline[$B_1, ..., B_r$] are the hidden type parameters introduced by data constructor #math.inline[$K$]. Universal type parameters belong to the owner nominal type #math.inline[$C$].
+
+*Types.*
+
+#formal-box[
+  $ display(cases(
+    #[$ T ::= "Unit" | "Bool" | "Int" | "String" $],
+    #[$ quad "|" A $],
+    #[$ quad "|" C[T_1, ..., T_n] $],
+    #[$ quad "|" (T_1, ..., T_n) -> R $],
+    #[$ quad "|" #sym.forall A_1, ..., A_n "." T $],
+  )) $
+]
+
+Buslane v1 has only the kind `Type`, but type-parameter metadata records kinds so that the representation remains higher-kind-ready. Buslane has no type-level lambda in v1.
+
+Buslane has no standalone `Exists` type constructor. Existential information is nominal: hidden type members are recorded in data-constructor metadata, construction supplies type witnesses, and matches introduce abstract type binders when opening hidden members.
+
+*Literals.*
+
+#formal-box[
+  $ l ::= () | "true" | "false" | i | s $
+]
+
+Integer literal values #math.inline[$i$] are normalized `Int64` values. String literal values #math.inline[$s$] are normalized ASCII byte sequences.
+
+*Top-level terms.*
+
+#formal-box[
+  $ display(cases(
+    #[$ d ::= "let" x = e $],
+    #[$ quad "|" "letrec" r $],
+    #[$ quad "|" "external" x $],
+    #[$ r ::= (x_1 = h_1), ..., (x_n = h_n) $],
+  )) $
+]
+
+Types and data constructors live in metadata, not in the top-level term sequence. Top-level pattern declarations do not enter Buslane.
+
+#math.inline[$"letrec" r$] represents recursive function groups. Buslane well-formedness does not require such groups to be minimal strongly connected components; minimal grouping is a Lane lowering quality property.
+
+*Expressions.*
+
+#formal-box[
+  $ display(cases(
+    #[$ e ::= x $],
+    #[$ quad "|" l $],
+    #[$ quad "|" "fn" (x_1, ..., x_n) "->" R "{" e "}" $],
+    #[$ quad "|" e(e_1, ..., e_n) $],
+    #[$ quad "|" "fn" "[" A_1, ..., A_n "]" "{" e "}" $],
+    #[$ quad "|" e[T_1, ..., T_n] $],
+    #[$ quad "|" K[T_1, ..., T_n; U_1, ..., U_r](e_1, ..., e_m) $],
+    #[$ quad "|" "let" x = e_1 "in" e_2 $],
+    #[$ quad "|" "letrec" r "in" e $],
+    #[$ quad "|" "match" e "as" x "->" R "{" a_1, ..., a_n "}" $],
+  )) $
+]
+
+#formal-box[
+  $ display(cases(
+    #[$ a ::= "_" #sym.arrow.r e $],
+    #[$ quad "|" l #sym.arrow.r e $],
+    #[$ quad "|" K[B_1, ..., B_r](y_1, ..., y_m) #sym.arrow.r e $],
+  )) $
+]
+
+The variable form #math.inline[$x$] is the only value-reference form. Parameters, locals, top-level values, functions, match binders, and external values are distinguished by metadata and scope rules, not by separate expression variants.
+
+Buslane has no `if` expression form, field-access expression form, unsafe-builtin expression form, cast form, coercion form, source-note form, profiling form, debug annotation form, or ANF atom/RHS category.
+
+== Typing
+
+Buslane typing is defined over a complete program. A conforming implementation must provide program-level verification. Expression and type verification may exist as internal operations, but the public semantic boundary is a complete Buslane program.
+
+*Program verification.*
+
+#tapl-rule("B-T-Program")[
+  $ display(cases(
+    #[$ P = (M; d_1, ..., d_n) $],
+    #[$ #sym.forall i "." M #sym.tack.r d_i #sym.checkmark $],
+  )) $
+][
+  $ #sym.tack.r P #sym.checkmark $
+]
+
+Verifier diagnostics report Buslane identities, node paths, and structural errors. They do not contain source spans. User-facing diagnostics recover source locations through an origin side table outside Buslane.
+
+Top-level terms are verified against metadata:
+
+#tapl-rule("B-T-TopLet")[
+  $ M #sym.tack.r x : T quad M; (); () #sym.tack.r e : T $
+][
+  $ M #sym.tack.r "let" x = e #sym.checkmark $
+]
+
+#tapl-rule("B-T-TopLetRec")[
+  $ display(cases(
+    #[$ r = (x_1 = h_1), ..., (x_n = h_n) $],
+    #[$ #sym.forall i "." M #sym.tack.r x_i : T_i $],
+    #[$ #sym.forall i "." M; (); x_1, ..., x_n #sym.tack.r h_i : T_i $],
+  )) $
+][
+  $ M #sym.tack.r "letrec" r #sym.checkmark $
+]
+
+#tapl-rule("B-T-TopExternal")[
+  $ M_V(x) = (kappa_e, T) $
+][
+  $ M #sym.tack.r "external" x #sym.checkmark $
+]
+
+*Type well-formedness.*
+
+#math-list(
+  $ M; #sym.Theta #sym.tack.r "Unit" : "Type" $,
+  $ M; #sym.Theta #sym.tack.r "Bool" : "Type" $,
+  $ M; #sym.Theta #sym.tack.r "Int" : "Type" $,
+  $ M; #sym.Theta #sym.tack.r "String" : "Type" $,
+)
+
+#tapl-rule("B-T-Parameter")[
+  $ A #sym.in #sym.Theta quad M #sym.tack.r A : "Type" $
+][
+  $ M; #sym.Theta #sym.tack.r A : "Type" $
+]
+
+#tapl-rule("B-T-Nominal")[
+  $ display(cases(
+    #[$ M #sym.tack.r C : tau_C(A_1, ..., A_n; K_1, ..., K_m) $],
+    #[$ #sym.forall i "." M; #sym.Theta #sym.tack.r T_i : "Type" $],
+  )) $
+][
+  $ M; #sym.Theta #sym.tack.r C[T_1, ..., T_n] : "Type" $
+]
+
+#tapl-rule("B-T-FunType")[
+  $ display(cases(
+    #[$ #sym.forall i "." M; #sym.Theta #sym.tack.r T_i : "Type" $],
+    #[$ M; #sym.Theta #sym.tack.r R : "Type" $],
+  )) $
+][
+  $ M; #sym.Theta #sym.tack.r (T_1, ..., T_n) -> R : "Type" $
+]
+
+#tapl-rule("B-T-Forall")[
+  $ display(cases(
+    #[$ #sym.forall i "." M #sym.tack.r A_i : "Type" $],
+    #[$ M; #sym.Theta, A_1, ..., A_n #sym.tack.r T : "Type" $],
+  )) $
+][
+  $ M; #sym.Theta #sym.tack.r #sym.forall A_1, ..., A_n "." T : "Type" $
+]
+
+Forall type equality uses alpha-equivalence. Globally unique `TypeParameterId` values are a representation and scoping device; raw binder identity equality is not the equality rule for forall types.
+
+*Value reference.*
+
+#tapl-rule("B-T-Ref")[
+  $ x #sym.in #sym.Gamma quad M #sym.tack.r x : T $
+][
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r x : T $
+]
+
+*Literals.*
+
+#math-list(
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r () : "Unit" $,
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r b : "Bool" $,
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r i : "Int" $,
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r s : "String" $,
+)
+
+*Function introduction.*
+
+#tapl-rule("B-T-Fun")[
+  $ display(cases(
+    #[$ #sym.forall i "." M #sym.tack.r x_i : T_i $],
+    #[$ M; #sym.Theta; #sym.Gamma, x_1, ..., x_n #sym.tack.r e : R $],
+  )) $
+][
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r "fn" (x_1, ..., x_n) "->" R "{" e "}" : (T_1, ..., T_n) -> R $
+]
+
+The function body is an arbitrary Buslane expression checked against the explicit result type. Parameter types come from metadata.
+
+*Call elimination.*
+
+#tapl-rule("B-T-Call")[
+  $ display(cases(
+    #[$ M; #sym.Theta; #sym.Gamma #sym.tack.r f : (T_1, ..., T_n) -> R $],
+    #[$ #sym.forall i "." M; #sym.Theta; #sym.Gamma #sym.tack.r a_i : T_i $],
+  )) $
+][
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r f(a_1, ..., a_n) : R $
+]
+
+Calls do not store result types. The result type is synthesized from the callee function type.
+
+*Type lambda introduction.*
+
+#tapl-rule("B-T-TAbs")[
+  $ display(cases(
+    #[$ #sym.forall i "." M #sym.tack.r A_i : "Type" $],
+    #[$ M; #sym.Theta, A_1, ..., A_n; #sym.Gamma #sym.tack.r e : T $],
+  )) $
+][
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r "fn" "[" A_1, ..., A_n "]" "{" e "}" : #sym.forall A_1, ..., A_n "." T $
+]
+
+*Type application elimination.*
+
+#tapl-rule("B-T-TApp")[
+  $ display(cases(
+    #[$ M; #sym.Theta; #sym.Gamma #sym.tack.r f : #sym.forall A_1, ..., A_n "." T $],
+    #[$ #sym.forall i "." M; #sym.Theta #sym.tack.r U_i : "Type" $],
+  )) $
+][
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r f[U_1, ..., U_n] : T[U_1 #sym.slash A_1, ..., U_n #sym.slash A_n] $
+]
+
+*Data construction.*
+
+#tapl-rule("B-T-Construct")[
+  $ display(cases(
+    #[$ M #sym.tack.r K : tau_K(C; B_1, ..., B_r; P_1, ..., P_m) $],
+    #[$ pi_K(M, K, T_1, ..., T_n; U_1, ..., U_r) = (Q_1, ..., Q_m) $],
+    #[$ #sym.forall i "." M; #sym.Theta; #sym.Gamma #sym.tack.r e_i : Q_i $],
+  )) $
+][
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r K "[" T_1, ..., T_n; U_1, ..., U_r "]" (e_1, ..., e_m) : C[T_1, ..., T_n] $
+]
+
+*Let.*
+
+#tapl-rule("B-T-Let")[
+  $ display(cases(
+    #[$ M #sym.tack.r x : T $],
+    #[$ M; #sym.Theta; #sym.Gamma #sym.tack.r e_1 : T $],
+    #[$ M; #sym.Theta; #sym.Gamma, x #sym.tack.r e_2 : R $],
+  )) $
+][
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r "let" x = e_1 "in" e_2 : R $
+]
+
+`Let` may bind an already-polymorphic value. Buslane does not perform implicit let-generalization.
+
+*Let-rec.*
+
+#tapl-rule("B-T-LetRec")[
+  $ display(cases(
+    #[$ #sym.forall i "." M #sym.tack.r x_i : T_i $],
+    #[$ #sym.forall i "." M; #sym.Theta; #sym.Gamma, x_1, ..., x_n #sym.tack.r h_i : T_i $],
+    #[$ M; #sym.Theta; #sym.Gamma, x_1, ..., x_n #sym.tack.r e : R $],
+  )) $
+][
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r "letrec" (x_1 = h_1, ..., x_n = h_n) "in" e : R $
+]
+
+Every right-hand side #math.inline[$h_i$] in a let-rec group must be a function value or a type-lambda-wrapped function value. General recursive values are invalid.
+
+*Match.*
+
+#tapl-rule("B-T-Match")[
+  $ display(cases(
+    #[$ M; #sym.Theta; #sym.Gamma #sym.tack.r e : T $],
+    #[$ M #sym.tack.r x : T $],
+    #[$ #sym.forall i "." M; #sym.Theta; #sym.Gamma #sym.tack.r a_i : alpha(x, T, R) $],
+    #[$ chi(M, T, a_1, ..., a_n) $],
+  )) $
+][
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r "match" e "as" x "->" R "{" a_1, ..., a_n "}" : R $
+]
+
+Alternative bodies do not store result types. Each body is checked against the enclosing match result type.
+
+The default alternative is valid for any scrutinee type:
+
+#tapl-rule("B-T-AltDefault")[
+  $ M; #sym.Theta; #sym.Gamma, x #sym.tack.r b : R $
+][
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r "_" #sym.arrow.r b : alpha(x, T, R) $
+]
+
+Literal alternatives are valid when the literal type equals the scrutinee type:
+
+#tapl-rule("B-T-AltLit")[
+  $ display(cases(
+    #[$ tau_l(l) #sym.eq.triple T $],
+    #[$ M; #sym.Theta; #sym.Gamma, x #sym.tack.r b : R $],
+  )) $
+][
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r l #sym.arrow.r b : alpha(x, T, R) $
+]
+
+Data-constructor alternatives open hidden type binders and bind payload values positionally:
+
+#tapl-rule("B-T-AltData")[
+  $ display(cases(
+    #[$ T #sym.eq.triple C[T_1, ..., T_n] $],
+    #[$ pi_K(M, K, T_1, ..., T_n; B_1, ..., B_r) = (Q_1, ..., Q_m) $],
+    #[$ #sym.forall i "." M #sym.tack.r y_i : Q_i $],
+    #[$ M; #sym.Theta, B_1, ..., B_r; #sym.Gamma, x, y_1, ..., y_m #sym.tack.r b : R $],
+  )) $
+][
+  $ M; #sym.Theta; #sym.Gamma #sym.tack.r K "[" B_1, ..., B_r "]" (y_1, ..., y_m) #sym.arrow.r b : alpha(x, T, R) $
+]
+
+A match must be exhaustive, may contain at most one default alternative, and any default alternative must be last. Duplicate literal alternatives and duplicate data-constructor alternatives are invalid.
+
+== Evaluation
+
+Buslane dynamic semantics are specified by small-step reduction over Buslane expressions. The relation #math.inline[$G #sym.tack.r e #sym.arrow.r e'$] means expression #math.inline[$e$] takes one step to #math.inline[$e'$] under top-level runtime environment #math.inline[$G$].
+
+Runtime values are:
+
+#formal-box[
+  $ display(cases(
+    #[$ w ::= l $],
+    #[$ quad "|" "fn" (x_1, ..., x_n) "->" R "{" e "}" $],
+    #[$ quad "|" "fn" "[" A_1, ..., A_n "]" "{" e "}" $],
+    #[$ quad "|" #sym.chevron.l K[T_1, ..., T_n; U_1, ..., U_r](w_1, ..., w_m) #sym.chevron.r $],
+    #[$ quad "|" "rec"(r, x) $],
+    #[$ quad "|" "external" x $],
+  )) $
+]
+
+Type arguments are runtime-erased for ordinary computation, but they remain present in the dynamic notation so that type-lambda elimination and existential opening are specified precisely.
+
+*Evaluation contexts.* Buslane evaluates strictly from left to right.
+
+#formal-box[
+  $ display(cases(
+    #[$ E ::= [] $],
+    #[$ quad "|" E(e_1, ..., e_n) $],
+    #[$ quad "|" w_0(..., w_(i-1), E, e_(i+1), ..., e_n) $],
+    #[$ quad "|" E[T_1, ..., T_n] $],
+    #[$ quad "|" K[T; U](w_1, ..., w_(i-1), E, e_(i+1), ..., e_m) $],
+    #[$ quad "|" "let" x = E "in" e $],
+    #[$ quad "|" "match" E "as" x "->" R "{" a_1, ..., a_n "}" $],
+  )) $
+]
+
+#tapl-rule("B-E-Ctx")[
+  $ G #sym.tack.r e #sym.arrow.r e' $
+][
+  $ G #sym.tack.r E[e] #sym.arrow.r E[e'] $
+]
+
+*Top-level reference.*
+
+#tapl-rule("B-E-TopRef")[
+  $ G(x) = w $
+][
+  $ G #sym.tack.r x #sym.arrow.r w $
+]
+
+Local binders are eliminated by capture-avoiding substitution rules below.
+
+*Let.*
+
+#tapl-rule("B-E-Let")[
+  $ $
+][
+  $ G #sym.tack.r "let" x = w "in" e #sym.arrow.r e[w #sym.slash x] $
+]
+
+*Let-rec.*
+
+#tapl-rule("B-E-LetRec")[
+  $ display(cases(
+    #[$ r = ((x_1 = h_1), ..., (x_n = h_n)) $],
+    #[$ rho_r(r) = ["rec"(r, x_1) #sym.slash x_1, ..., "rec"(r, x_n) #sym.slash x_n] $],
+  )) $
+][
+  $ G #sym.tack.r "letrec" r "in" e #sym.arrow.r e rho_r(r) $
+]
+
+Recursive values unroll when forced:
+
+#tapl-rule("B-E-Rec")[
+  $ display(cases(
+    #[$ r = ((x_1 = h_1), ..., (x_n = h_n)) $],
+    #[$ rho_r(r) = ["rec"(r, x_1) #sym.slash x_1, ..., "rec"(r, x_n) #sym.slash x_n] $],
+  )) $
+][
+  $ G #sym.tack.r "rec"(r, x_i) #sym.arrow.r h_i rho_r(r) $
+]
+
+*Function call.*
+
+#tapl-rule("B-E-Call")[
+  $ #sym.sigma = [w_1 #sym.slash x_1, ..., w_n #sym.slash x_n] $
+][
+  $ G #sym.tack.r ("fn" (x_1, ..., x_n) "->" R "{" e "}")(w_1, ..., w_n) #sym.arrow.r e #sym.sigma $
+]
+
+Function arguments are evaluated before this rule applies.
+
+*Type application.*
+
+#tapl-rule("B-E-TApp")[
+  $ #sym.sigma = [T_1 #sym.slash A_1, ..., T_n #sym.slash A_n] $
+][
+  $ G #sym.tack.r ("fn" "[" A_1, ..., A_n "]" "{" e "}") "[" T_1, ..., T_n "]" #sym.arrow.r e #sym.sigma $
+]
+
+*Data construction.*
+
+#tapl-rule("B-E-Construct")[
+  $ display(cases(
+    #[$ c = K "[" T; U "]" (w) $],
+    #[$ d = #sym.chevron.l K "[" T; U "]" (w) #sym.chevron.r $],
+  )) $
+][
+  $ G #sym.tack.r c #sym.arrow.r d $
+]
+
+Here, `T`, `U`, and `w` abbreviate the constructor's owner type arguments, hidden witness types, and evaluated payload values.
+
+*Literal match.*
+
+#tapl-rule("B-E-MatchLit")[
+  $ delta_l(l, a_1, ..., a_n) = b $
+][
+  $ G #sym.tack.r "match" l "as" x "->" R "{" a_1, ..., a_n "}" #sym.arrow.r b[l #sym.slash x] $
+]
+
+*Data-constructor match.*
+
+#tapl-rule("B-E-MatchData")[
+  $ display(cases(
+    #[$ d = #sym.chevron.l K "[" T; U_1, ..., U_r "]" (w_1, ..., w_m) #sym.chevron.r $],
+    #[$ A = K "[" B_1, ..., B_r "]" (y_1, ..., y_m) #sym.arrow.r b $],
+    #[$ delta_K(K, a_1, ..., a_n) = A $],
+    #[$ #sym.rho = [U_1 #sym.slash B_1, ..., U_r #sym.slash B_r] $],
+    #[$ #sym.sigma = [d #sym.slash x, w_1 #sym.slash y_1, ..., w_m #sym.slash y_m] $],
+  )) $
+][
+  $ G #sym.tack.r "match" d "as" x "->" R "{" a_1, ..., a_n "}" #sym.arrow.r b #sym.rho #sym.sigma $
+]
+
+*Default match.*
+
+#tapl-rule("B-E-MatchDefault")[
+  $ display(cases(
+    #[$ delta_0(a_1, ..., a_n) = b $],
+    #[$ nu_0(w, a_1, ..., a_n) $],
+  )) $
+][
+  $ G #sym.tack.r "match" w "as" x "->" R "{" a_1, ..., a_n "}" #sym.arrow.r b[w #sym.slash x] $
+]
+
+Because Buslane matches are verified as exhaustive, a well-formed Buslane match over a safe value never gets stuck for lack of an alternative.
+
+*External values.* External values are supplied by the execution environment. Applying an external function value delegates to the runtime contract associated with that value. Misuse of an external builtin is undefined behavior.
+
+== Relation to ANF
+
+ANF preserves Buslane typing and evaluation behavior while introducing atom, right-hand-side, binding, and temporary structure to make evaluation order explicit. A conforming implementation may evaluate Buslane directly or lower Buslane to ANF first. The observable behavior of safe programs must be the same.
 
 = Evaluation
 
