@@ -2090,19 +2090,19 @@ Source match elaborates to Buslane match. Every source pattern is lowered to one
 #tapl-rule("E-ArmWildcard")[
   $ L; #sym.Theta; #sym.Gamma #sym.tack.r e #sym.arrow.r b : R $
 ][
-  $ L; #sym.Theta; #sym.Gamma #sym.tack.r "_" "=>" e #sym.arrow.r "_" #sym.arrow.r b : alpha(x_m, T, R) $
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r "_" #sym.arrow.r.double e #sym.arrow.r "_" #sym.arrow.r b : alpha(x_m, T, R) $
 ]
 
 #tapl-rule("E-ArmVariable")[
   $ L; #sym.Theta; #sym.Gamma, y #sym.tack.r e #sym.arrow.r b : R $
 ][
-  $ L; #sym.Theta; #sym.Gamma #sym.tack.r y "=>" e #sym.arrow.r "_" #sym.arrow.r "let" y = x_m "in" b : alpha(x_m, T, R) $
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r y #sym.arrow.r.double e #sym.arrow.r "_" #sym.arrow.r "let" y = x_m "in" b : alpha(x_m, T, R) $
 ]
 
 #tapl-rule("E-ArmLiteral")[
   $ L; #sym.Theta; #sym.Gamma #sym.tack.r e #sym.arrow.r b : R $
 ][
-  $ L; #sym.Theta; #sym.Gamma #sym.tack.r l "=>" e #sym.arrow.r l #sym.arrow.r b : alpha(x_m, T, R) $
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r l #sym.arrow.r.double e #sym.arrow.r l #sym.arrow.r b : alpha(x_m, T, R) $
 ]
 
 #tapl-rule("E-ArmVariant")[
@@ -2113,7 +2113,7 @@ Source match elaborates to Buslane match. Every source pattern is lowered to one
     #[$ A = K[B_1, ..., B_r](y_1, ..., y_m) #sym.arrow.r b $],
   )) $
 ][
-  $ L; #sym.Theta; #sym.Gamma #sym.tack.r p "=>" e #sym.arrow.r A : alpha(x_m, T, R) $
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r p #sym.arrow.r.double e #sym.arrow.r A : alpha(x_m, T, R) $
 ]
 
 #tapl-rule("E-ArmStruct")[
@@ -2124,7 +2124,7 @@ Source match elaborates to Buslane match. Every source pattern is lowered to one
     #[$ A = K[B_1, ..., B_r](y_1, ..., y_m) #sym.arrow.r b $],
   )) $
 ][
-  $ L; #sym.Theta; #sym.Gamma #sym.tack.r p "=>" e #sym.arrow.r A : alpha(x_m, T, R) $
+  $ L; #sym.Theta; #sym.Gamma #sym.tack.r p #sym.arrow.r.double e #sym.arrow.r A : alpha(x_m, T, R) $
 ]
 
 == Operator Expressions
