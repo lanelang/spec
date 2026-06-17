@@ -1,4 +1,4 @@
-# Lane2 Examples
+# Lane Examples
 
 These files are executable specification fixtures for the parser, resolver, type
 checker, elaborator, Buslane checker, and reference interpreter.
