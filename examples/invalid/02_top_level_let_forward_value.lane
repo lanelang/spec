@@ -1,4 +1,0 @@
-// invalid: top-level let initializers follow ordered value scope
-let y : Int = x
-let x : Int = 1
-

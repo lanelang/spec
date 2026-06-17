@@ -1,8 +1,0 @@
-fn compare_ints(a : Int, b : Int) -> Bool {
-  if a < b {
-    a != b
-  } else {
-    a == b || a > b
-  }
-}
-

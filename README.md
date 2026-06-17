@@ -4,7 +4,9 @@ This directory contains the formal Lane language specification.
 
 - `language-spec.typ`: Typst source for the specification.
 - `language-spec.pdf`: rendered specification.
-- `examples/`: source fixtures used to clarify accepted and rejected Lane programs.
+
+Executable conformance fixtures live in
+[`lanelang/lane/examples`](https://github.com/lanelang/lane/tree/main/examples).
 
 Build the rendered specification from the repository root:
 
